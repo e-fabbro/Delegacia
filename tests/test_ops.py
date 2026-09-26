@@ -121,3 +121,15 @@ def test_setup_recarrega_regras_ao_reexecutar(raiz_projeto):
     texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
     assert "systemctl restart nexo-egress-nft.service" in texto
     assert texto.index("systemctl restart nexo-egress-nft.service") < texto.index("systemctl start nexo-egress-refresh.service")
+
+
+def test_pasta_agents_existe_para_o_sandbox(raiz_projeto):
+    # O sandbox do Codex monta .agents/ somente leitura na raiz do workspace e precisa que ela exista:
+    # com o repositório root:root, o nexo não consegue criá-la (bwrap: Can't mkdir .agents).
+    assert (raiz_projeto / ".agents" / ".gitkeep").is_file()
+
+
+def test_setup_reexecuta_com_volume_montado(raiz_projeto):
+    # Montado sem allow_other, nem root enxerga /srv/casos: mkdir/chown nele quebram o setup.
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert 'sudo -u "${NEXO_USER}" mountpoint -q "${CASOS_DIR}"' in texto
