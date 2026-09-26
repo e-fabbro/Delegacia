@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Achado",
+  "type": "object",
+  "required": ["id", "agente", "rotulo", "enunciado", "fontes", "relevancia"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[A-Z]{2,4}-\\d{3,}$", "description": "ex.: RIF-001, BAN-014, TEL-003, INT-002" },
+    "agente": { "type": "string" },
+    "rotulo": { "enum": ["FATO", "INFERENCIA", "HIPOTESE", "LIMITACAO"] },
+    "enunciado": { "type": "string", "minLength": 10 },
+    "raciocinio": { "type": "string", "description": "obrigatório para INFERENCIA" },
+    "entidades": { "type": "array", "items": { "type": "string", "pattern": "^(PF|PJ|CT|TEL|EML|PIX|END)-\\d{4}$" } },
+    "valores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["valor", "origem"],
+        "properties": {
+          "valor": { "type": "number" },
+          "moeda": { "type": "string", "default": "BRL" },
+          "origem": { "type": "string", "description": "comando agencia que gerou o número" }
+        }
+      }
+    },
+    "periodo": {
+      "type": "object",
+      "properties": { "inicio": { "type": "string", "format": "date" }, "fim": { "type": "string", "format": "date" } }
+    },
+    "fontes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["doc_id", "localizador"],
+        "properties": {
+          "doc_id": { "type": "string", "pattern": "^DOC-\\d{3,}$" },
+          "localizador": { "type": "string", "pattern": "^(p\\d+|l\\d+(-\\d+)?|tx#\\d+|com#\\d+|ev#\\d+|agg#[a-z0-9_]+)$" }
+        }
+      }
+    },
+    "relevancia": { "enum": ["alta", "media", "baixa"] },
+    "diligencia": {
+      "type": "object",
+      "description": "obrigatório para HIPOTESE e LIMITACAO",
+      "properties": {
+        "tipo": { "enum": ["BAN", "QT", "IT", "CCS", "OFICIO_BANCO", "OFICIO_OPERADORA", "OFICIO_PROVEDOR", "OFICIO_EXCHANGE", "RIF_COMPLEMENTAR", "JUNTA_COMERCIAL", "OUTRA"] },
+        "alvo": { "type": "string" },
+        "motivo": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "rotulo": { "const": "INFERENCIA" } } }, "then": { "required": ["raciocinio"] } },
+    { "if": { "properties": { "rotulo": { "enum": ["HIPOTESE", "LIMITACAO"] } } }, "then": { "required": ["diligencia"] } }
+  ]
+}

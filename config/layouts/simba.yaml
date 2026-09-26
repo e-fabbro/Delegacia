@@ -1,0 +1,21 @@
+# Mapeamento de colunas do SIMBA -> modelo interno.
+# PROVISÓRIO: confirmar contra o cabeçalho de um arquivo real antes da Fase 3.
+# Chave = campo interno; valor = nomes de coluna aceitos (usa o primeiro que existir).
+extrato:
+  banco: [NUMERO_BANCO, BANCO]
+  agencia: [NUMERO_AGENCIA, AGENCIA]
+  conta: [NUMERO_CONTA, CONTA]
+  data: [DATA_LANCAMENTO, DATA]
+  historico: [DESCRICAO_LANCAMENTO, HISTORICO]
+  documento: [NUMERO_DOCUMENTO, DOCUMENTO]
+  valor: [VALOR_TRANSACAO, VALOR]
+  natureza: [NATUREZA_LANCAMENTO, CD]        # C/D
+  saldo: [VALOR_SALDO, SALDO]
+  od_cpf_cnpj: [CPF_CNPJ_OD]
+  od_nome: [NOME_PESSOA_OD]
+  od_banco: [NUMERO_BANCO_OD]
+  od_agencia: [NUMERO_AGENCIA_OD]
+  od_conta: [NUMERO_CONTA_OD]
+  local: [LOCAL_TRANSACAO]
+formato_data: ["%d/%m/%Y", "%Y-%m-%d"]
+separador_decimal: ","
