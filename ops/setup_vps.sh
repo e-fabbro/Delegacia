@@ -94,10 +94,18 @@ chown "${NEXO_USER}:${NEXO_USER}" "/home/${NEXO_USER}/.codex/config.toml"
 chmod 0600 "/home/${NEXO_USER}/.codex/config.toml"
 
 echo ">> 3. diretórios de casos (cifrado) e ${LOG_DIR}"
-mkdir -p "${CASOS_DIR}" "${CIFRADO_DIR}" "${LOG_DIR}"
-chown "${NEXO_USER}:${NEXO_USER}" "${CASOS_DIR}" "${CIFRADO_DIR}" "${LOG_DIR}"
-chmod 700 "${CASOS_DIR}" "${CIFRADO_DIR}"
+mkdir -p "${CIFRADO_DIR}" "${LOG_DIR}"
+chown "${NEXO_USER}:${NEXO_USER}" "${CIFRADO_DIR}" "${LOG_DIR}"
+chmod 700 "${CIFRADO_DIR}"
 chmod 750 "${LOG_DIR}"
+# Montado (sem allow_other), nem root enxerga o ponto de montagem: só prepara quando desmontado.
+if sudo -u "${NEXO_USER}" mountpoint -q "${CASOS_DIR}"; then
+  echo "   ${CASOS_DIR} montado; ponto de montagem mantido como está"
+else
+  mkdir -p "${CASOS_DIR}"
+  chown "${NEXO_USER}:${NEXO_USER}" "${CASOS_DIR}"
+  chmod 700 "${CASOS_DIR}"
+fi
 if [[ ! -f "${CIFRADO_DIR}/gocryptfs.conf" ]]; then
   echo "   inicializando volume gocryptfs em ${CIFRADO_DIR} (será pedida uma senha; guarde-a fora da VPS)"
   sudo -u "${NEXO_USER}" gocryptfs -init "${CIFRADO_DIR}"
