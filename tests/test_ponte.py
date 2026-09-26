@@ -181,7 +181,28 @@ def test_unidade_systemd_da_ponte(raiz_projeto):
 
 
 def test_adendo_usa_so_a_ferramenta(raiz_projeto):
-    texto = (raiz_projeto / "hermes" / "nexo-AGENTS-adendo.md").read_text(encoding="utf-8")
+    texto = (raiz_projeto / "hermes" / "skills" / "agencia-nexo" / "SKILL.md").read_text(encoding="utf-8")
     assert "scripts/agencia <acao> <CODINOME>" in texto and "agencia resultado <COD>" in texto
     assert "sudo" not in texto  # o Hermes roda em container: a ponte substitui o sudoers
     assert "Só codinome, pseudônimos" in texto
+
+
+def test_skill_no_formato_do_hermes(raiz_projeto):
+    texto = (raiz_projeto / "hermes" / "skills" / "agencia-nexo" / "SKILL.md").read_text(encoding="utf-8")
+    assert texto.startswith("---\nname: agencia-nexo\n")
+    assert "ponte da Gutcha" in texto
+
+
+def test_instalador_da_ponte(raiz_projeto):
+    texto = (raiz_projeto / "ops" / "instalar_ponte.sh").read_text(encoding="utf-8")
+    assert texto.startswith("#!/usr/bin/env bash") and "set -euo pipefail" in texto
+    assert "install -m 0755" in texto and "/usr/local/bin/nexo_run" in texto
+    assert "secrets.token_urlsafe" in texto and "chmod 0640 /etc/agencia-nexo/ponte.token" in texto
+    assert "chown root:nexo /etc/agencia-nexo/ponte.token" in texto
+    assert '"${PERFIL}/scripts/.ponte_token"' in texto and "-m 0600" in texto
+    assert '"${PERFIL}/skills/agencia-nexo/SKILL.md"' in texto
+    assert "skill `agencia-nexo`" in texto  # linha acrescentada ao SOUL.md, idempotente
+    assert "ponte-nexo.service" in texto
+    assert "sudoers" not in texto
+    p = subprocess.run(["bash", "-n", str(raiz_projeto / "ops" / "instalar_ponte.sh")], capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
