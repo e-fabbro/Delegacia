@@ -1,4 +1,7 @@
-"""Critério de aceite F0: hooks bloqueiam brutos/cofre/rede e registram auditoria."""
+"""Critério de aceite F0: hooks bloqueiam brutos/cofre/rede e registram auditoria.
+
+O runtime é o Codex: shell chega como `Bash` com `command` string; edição chega como
+`apply_patch` com o patch inteiro em `command`."""
 import json
 import subprocess
 import sys
@@ -81,6 +84,75 @@ PERMITIDOS = [
 def test_guard_permite(raiz_projeto, tool_name, tool_input):
     proc = rodar_hook(raiz_projeto, "guard_paths.py", tool_name, tool_input)
     assert proc.returncode == 0, proc.stderr
+
+
+# ---------- Codex: apply_patch e shell embrulhado ----------
+
+def _patch(*cabecalhos, corpo="+linha"):
+    linhas = ["*** Begin Patch"]
+    for c in cabecalhos:
+        linhas += [c, corpo]
+    linhas.append("*** End Patch")
+    return "\n".join(linhas)
+
+
+BLOQUEADOS_CODEX = [
+    ("apply_patch", {"command": _patch(f"*** Add File: {CASO}/00_brutos/x.txt")}),
+    ("apply_patch", {"command": _patch(f"*** Update File: {CASO}/_cofre/mapa.json")}),
+    ("apply_patch", {"command": _patch(f"*** Delete File: {CASO}/00_brutos/rif.pdf")}),
+    ("apply_patch", {"command": _patch("*** Add File: 00_brutos/x.txt")}),  # relativo
+    ("apply_patch", {"command": _patch(f"*** Update File: {CASO}/03_analises/a.md\n*** Move to: {CASO}/_cofre/a.md")}),
+    ("apply_patch", {"command": _patch(f"*** Add File: {CASO}/03_analises/ok.md", f"*** Add File: {CASO}/_cofre/y")}),
+    ("apply_patch", {"command": _patch("*** Update File: /opt/agencia-nexo/.env")}),
+    ("Bash", {"command": f"bash -lc 'cat {CASO}/00_brutos/rif.pdf'"}),
+    ("Bash", {"command": f"bash -lc 'python -m agencia ingerir TESTE; cat {CASO}/00_brutos/x'"}),
+    ("Bash", {"command": ["bash", "-lc", f"cat {CASO}/_cofre/identidades.db"]}),
+    ("Bash", {"command": ["cat", f"{CASO}/00_brutos/rif.pdf"]}),
+    ("Bash", {"command": "bash -lc 'curl https://example.com'"}),
+]
+
+
+@pytest.mark.parametrize("tool_name,tool_input", BLOQUEADOS_CODEX)
+def test_guard_bloqueia_codex(raiz_projeto, tool_name, tool_input):
+    proc = rodar_hook(raiz_projeto, "guard_paths.py", tool_name, tool_input)
+    assert proc.returncode == 2, proc.stderr
+    assert "BLOQUEADO" in proc.stderr
+
+
+PERMITIDOS_CODEX = [
+    ("apply_patch", {"command": _patch(f"*** Add File: {CASO}/03_analises/analista-rif/nota.md",
+                                       corpo="+material em 00_brutos/ e _cofre/")}),
+    ("apply_patch", {"command": _patch(f"*** Update File: {CASO}/04_produtos/x.md", corpo="-00_brutos\n+_cofre")}),
+    ("Bash", {"command": "bash -lc 'python -m agencia caso status TESTE --md'"}),
+    ("Bash", {"command": f"bash -lc 'python -m agencia ingerir TESTE --dir {CASO}/00_brutos'"}),
+    ("Bash", {"command": ["bash", "-lc", f"uv run python -m agencia ingerir TESTE --dir {CASO}/00_brutos/"]}),
+    ("Bash", {"command": ["ls", f"{CASO}/02_extraido"]}),
+    ("update_plan", {"plan": [{"step": "ler 00_brutos? não", "status": "pending"}]}),
+]
+
+
+@pytest.mark.parametrize("tool_name,tool_input", PERMITIDOS_CODEX)
+def test_guard_permite_codex(raiz_projeto, tool_name, tool_input):
+    proc = rodar_hook(raiz_projeto, "guard_paths.py", tool_name, tool_input)
+    assert proc.returncode == 0, proc.stderr
+
+
+@pytest.mark.parametrize("entrada", ["nao-json", "[]", '{"tool_name": "Bash", "tool_input": 7}'])
+def test_guard_falha_fechado(raiz_projeto, entrada):
+    proc = subprocess.run([sys.executable, str(raiz_projeto / "hooks" / "guard_paths.py")],
+                          input=entrada, capture_output=True, text=True)
+    assert proc.returncode == 2, proc.stderr
+    assert "BLOQUEADO" in proc.stderr
+
+
+def test_hooks_json_do_codex(raiz_projeto):
+    cfg = json.loads((raiz_projeto / ".codex" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
+    pre = cfg["PreToolUse"][0]
+    assert pre["matcher"] in ("*", None) or "Bash" in pre["matcher"] and "apply_patch" in pre["matcher"]
+    assert "hooks/guard_paths.py" in pre["hooks"][0]["command"]
+    assert "hooks/audit_log.py" in cfg["PostToolUse"][0]["hooks"][0]["command"]
+    # sem variável de projeto do Claude; caminho resolvido a partir do repositório
+    assert "CLAUDE_PROJECT_DIR" not in json.dumps(cfg)
 
 
 # ---------- audit_log ----------

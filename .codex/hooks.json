@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [{ "type": "command", "command": "python3 /opt/agencia-nexo/hooks/guard_paths.py", "timeout": 30 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [{ "type": "command", "command": "python3 /opt/agencia-nexo/hooks/audit_log.py", "timeout": 30 }]
+      }
+    ]
+  }
+}
