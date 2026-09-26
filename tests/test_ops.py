@@ -157,3 +157,23 @@ def test_ambiente_local_nao_versionado(raiz_projeto):
     import subprocess as sp
     rastreados = sp.run(["git", "-C", str(raiz_projeto), "ls-files", ".venv"], capture_output=True, text=True).stdout
     assert rastreados.strip() == ""
+
+
+@pytest.mark.parametrize("script", ["ops/setup_vps.sh", "ops/instalar_ponte.sh", "ops/teste_headless.sh",
+                                    "ops/nexo_exec.sh", "hermes/nexo_run.sh"])
+def test_heredoc_sem_aspas_nao_executa_nada(raiz_projeto, script):
+    # Em heredoc sem aspas (<<EOF) o bash executa `...` e $(...): uma crase num comentário abriu um
+    # shell root interativo durante o setup. Só heredoc com aspas (<<'EOF') pode conter isso.
+    import re
+    linhas = (raiz_projeto / script).read_text(encoding="utf-8").splitlines()
+    dentro, fim = False, None
+    for n, linha in enumerate(linhas, 1):
+        if not dentro:
+            m = re.search(r"<<-?\s*([A-Za-z_]+)\b", linha)  # sem aspas: <<EOF
+            if m and not re.search(r"<<-?\s*['\"]", linha):
+                dentro, fim = True, m.group(1)
+            continue
+        if linha.strip() == fim:
+            dentro = False
+            continue
+        assert "`" not in linha and "$(" not in linha, f"{script}:{n}: {linha.strip()}"
