@@ -3,7 +3,8 @@ import subprocess
 
 import pytest
 
-SCRIPTS = ["ops/setup_vps.sh", "ops/nexo_egress_refresh.sh", "ops/nexo_montar_casos.sh"]
+SCRIPTS = ["ops/setup_vps.sh", "ops/nexo_egress_refresh.sh", "ops/nexo_montar_casos.sh",
+           "ops/nexo_exec.sh", "ops/teste_headless.sh", "hermes/nexo_run.sh"]
 
 
 @pytest.mark.parametrize("script", SCRIPTS)
@@ -53,10 +54,15 @@ def test_setup_nao_toca_ruleset_global(raiz_projeto):
     assert "nexo-egress-nft.service" in texto  # unidade própria, só a tabela inet nexo_egress
 
 
-def test_so_oauth_sem_chave_de_api(raiz_projeto):
+def test_so_login_chatgpt_sem_chave_de_api(raiz_projeto):
+    # Chave de API só pode aparecer sendo removida do ambiente (`env -u NOME`).
+    import re
+    chave = re.compile(r"(ANTHROPIC|OPENAI|CODEX)_API_KEY")
     for pasta in ("ops", "hermes"):
         for arq in (raiz_projeto / pasta).iterdir():
-            assert "ANTHROPIC_API_KEY" not in arq.read_text(encoding="utf-8"), arq.name
+            for linha in arq.read_text(encoding="utf-8").splitlines():
+                restante = re.sub(r"-u (ANTHROPIC|OPENAI|CODEX)_API_KEY", "", linha)
+                assert not chave.search(restante), f"{arq.name}: {linha.strip()}"
 
 
 def test_hosts_permitidos_iguais_e_cobrem_oauth(raiz_projeto):
