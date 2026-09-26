@@ -8,13 +8,16 @@
 #   3. cria /srv/casos (ponto de montagem) sobre volume cifrado gocryptfs em
 #      /srv/.casos.cifrado — a montagem é manual após reboot (ops/nexo_montar_casos.sh);
 #   4. cria /var/log/agencia-nexo (auditoria dos hooks e saídas headless);
-#   5. instala regras nftables por UID: o usuário `nexo` só sai para
-#      api.anthropic.com e api.telegram.org (443) e DNS; o resto é registrado e descartado;
+#   5. instala regras nftables por UID: o usuário `nexo` só sai para a API e o OAuth da
+#      Anthropic e api.telegram.org (443) e DNS; o resto é registrado e descartado.
+#      Carrega só a tabela `inet nexo_egress` por unidade própria (nexo-egress-nft.service):
+#      não habilita nftables.service, cuja config padrão do Ubuntu esvazia o ruleset e apagaria o Docker;
 #   6. instala o refresh periódico dos IPs permitidos (systemd timer);
-#   7. clona/atualiza o repositório em /opt/agencia-nexo e roda `uv sync` (como root,
-#      porque `nexo` não alcança PyPI/GitHub por causa do item 5).
+#   7. clona/atualiza o repositório em /opt/agencia-nexo, instala o uv em /usr/local/bin e roda
+#      `uv sync --frozen` com o Python do sistema (como root, porque `nexo` não alcança PyPI/GitHub
+#      por causa do item 5; Python gerenciado pelo uv ficaria em /root, ilegível pelo nexo).
 #
-# NÃO faz: login do Claude Code para o usuário `nexo` (ver "Depois de executar").
+# NÃO faz: login OAuth do Claude Code para o usuário `nexo` (ver "Depois de executar").
 set -euo pipefail
 
 NEXO_USER="${NEXO_USER:-nexo}"
@@ -23,7 +26,8 @@ REPO_DIR="${REPO_DIR:-/opt/agencia-nexo}"
 CASOS_DIR="${CASOS_DIR:-/srv/casos}"
 CIFRADO_DIR="${CIFRADO_DIR:-/srv/.casos.cifrado}"
 LOG_DIR="${LOG_DIR:-/var/log/agencia-nexo}"
-HOSTS_PERMITIDOS="${HOSTS_PERMITIDOS:-api.anthropic.com api.telegram.org}"
+# API + OAuth (login e renovação do token) da Anthropic; Telegram para o canal.
+HOSTS_PERMITIDOS="${HOSTS_PERMITIDOS:-api.anthropic.com console.anthropic.com platform.claude.com claude.ai api.telegram.org}"
 HERMES_USER="${HERMES_USER:-}"   # usuário que roda o Hermes; vazio = não configura sudoers
 
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +40,7 @@ fi
 echo ">> 1. pacotes"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq gocryptfs fuse3 nftables git python3 ca-certificates >/dev/null
+apt-get install -y -qq gocryptfs fuse3 nftables git python3.12 python3.12-venv curl ca-certificates >/dev/null
 
 echo ">> 2. usuário ${NEXO_USER}"
 if ! id -u "${NEXO_USER}" >/dev/null 2>&1; then
@@ -101,10 +105,24 @@ table inet nexo_egress {
     }
 }
 EOF
-grep -q 'nftables.d/nexo-egress.nft' /etc/nftables.conf 2>/dev/null \
-  || echo 'include "/etc/nftables.d/nexo-egress.nft"' >> /etc/nftables.conf
-systemctl enable --now nftables >/dev/null
-nft -f /etc/nftables.d/nexo-egress.nft
+# Unidade própria: carrega só esta tabela no boot, sem tocar nas tabelas do Docker/UFW.
+cat > /etc/systemd/system/nexo-egress-nft.service <<'EOF'
+[Unit]
+Description=Agência Nexo — tabela nftables inet nexo_egress (egress do usuário nexo)
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/nexo-egress.nft
+ExecStop=/usr/sbin/nft delete table inet nexo_egress
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now nexo-egress-nft.service >/dev/null
 
 echo ">> 5. refresh periódico dos IPs permitidos"
 install -m 0755 "${AQUI}/nexo_egress_refresh.sh" /usr/local/sbin/nexo-egress-refresh
@@ -112,7 +130,8 @@ sed -i "s|^HOSTS_PERMITIDOS=.*|HOSTS_PERMITIDOS=\"${HOSTS_PERMITIDOS}\"|" /usr/l
 cat > /etc/systemd/system/nexo-egress-refresh.service <<'EOF'
 [Unit]
 Description=Agência Nexo — atualiza IPs permitidos no nftables
-After=network-online.target nftables.service
+After=network-online.target nexo-egress-nft.service
+Requires=nexo-egress-nft.service
 Wants=network-online.target
 
 [Service]
@@ -141,11 +160,10 @@ if [[ ! -d "${REPO_DIR}/.git" ]]; then
 else
   git -C "${REPO_DIR}" pull --ff-only --quiet
 fi
-if ! command -v uv >/dev/null 2>&1; then
-  echo "   uv não encontrado; instale-o (https://docs.astral.sh/uv/) e rode: uv sync em ${REPO_DIR}" >&2
-else
-  (cd "${REPO_DIR}" && uv sync --python 3.12 --quiet)
+if [[ ! -x /usr/local/bin/uv ]]; then
+  curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh >/dev/null
 fi
+(cd "${REPO_DIR}" && UV_PYTHON_PREFERENCE=only-system /usr/local/bin/uv sync --frozen --python /usr/bin/python3.12 --quiet)
 chown -R "${NEXO_USER}:${NEXO_USER}" "${REPO_DIR}"
 
 if [[ -n "${HERMES_USER}" ]] && id -u "${HERMES_USER}" >/dev/null 2>&1; then
@@ -162,9 +180,9 @@ cat <<EOF
 CONCLUÍDO.
 Depois de executar:
   - montar o volume:            nexo-montar-casos            (a cada reboot; pede a senha)
-  - autenticar o Claude Code:   sudo -u ${NEXO_USER} -i claude   (se usar login OAuth, liberar
-                                temporariamente os hosts de login em HOSTS_PERMITIDOS ou usar ANTHROPIC_API_KEY)
+  - autenticar o Claude Code:   sudo -u ${NEXO_USER} -i claude   (login OAuth da conta do Fabbro; único
+                                método. Se falhar, ver descartes abaixo e ajustar HOSTS_PERMITIDOS)
   - testar o bloqueio:          sudo -u ${NEXO_USER} -i bash -c 'curl -sS -m 5 https://example.com || echo BLOQUEADO'
   - ver descartes:              journalctl -k | grep nexo-egress-drop
-  - atualizar código:           como root, git -C ${REPO_DIR} pull && uv sync; depois chown -R ${NEXO_USER}
+  - atualizar código:           como root, git -C ${REPO_DIR} pull && (cd ${REPO_DIR} && UV_PYTHON_PREFERENCE=only-system uv sync --frozen); depois chown -R ${NEXO_USER}:${NEXO_USER} ${REPO_DIR}
 EOF
