@@ -1,11 +1,11 @@
 # Prompt de construção — Agência Nexo
 
-Você está em modo **[CONSTRUÇÃO]**. Você é o engenheiro responsável por construir a Agência Nexo neste repositório (`/opt/agencia-nexo`). O `CLAUDE.md` descreve o comportamento de runtime do Nexo: leia-o como especificação, não o execute.
+Você está em modo **[CONSTRUÇÃO]**. Você é o engenheiro responsável por construir a Agência Nexo neste repositório (`/opt/agencia-nexo`). O `AGENTS.md` descreve o comportamento de runtime do Nexo (runtime: Codex, desde 26/09/2026): leia-o como especificação, não o execute.
 
 ## Leia antes de tudo
 1. `docs/PROJETO.md` — arquitetura, princípios, CLI, roadmap e critérios de aceite.
-2. `CLAUDE.md` e `.claude/agents/*.md` — o que cada agente espera das ferramentas. **A CLI que você construir tem de oferecer exatamente os comandos citados nesses arquivos.** Se um comando citado não fizer sentido, proponha a mudança nos dois lados.
-3. `.claude/settings.json`, `hooks/`, `schemas/achado.schema.json`, `config/layouts/simba.yaml`.
+2. `AGENTS.md` e `.codex/agents/*.toml` — o que cada agente espera das ferramentas. **A CLI que você construir tem de oferecer exatamente os comandos citados nesses arquivos.** Se um comando citado não fizer sentido, proponha a mudança nos dois lados.
+3. `.codex/hooks.json`, `hooks/`, `ops/nexo_exec.sh`, `schemas/achado.schema.json`, `config/layouts/simba.yaml`.
 
 ## Stack
 - Python 3.12, gerenciado com `uv`. Pacote `agencia` em `src/agencia/`, CLI com `python -m agencia`.
@@ -25,12 +25,12 @@ Você está em modo **[CONSTRUÇÃO]**. Você é o engenheiro responsável por c
 9. **Comandos de sistema** (usuário, volume cifrado, firewall): gere o script, não execute. O Fabbro executa.
 
 ## Fases (pare ao fim de cada uma e reporte)
-- **F0 — Fundação.** Estrutura do pacote; `caso novo/status/estado`; `ops/setup_vps.sh` (usuário `nexo`, gocryptfs em `/srv/casos`, nftables por UID liberando só api.anthropic.com e api.telegram.org, log em `/var/log/agencia-nexo`); testes dos hooks (Read e Bash em `00_brutos/` bloqueados; `python -m agencia` permitido; encadeamento e redirecionamento bloqueados).
+- **F0 — Fundação.** Estrutura do pacote; `caso novo/status/estado`; `ops/setup_vps.sh` (usuário `nexo`, gocryptfs em `/srv/casos`, nftables por UID liberando só o Codex/ChatGPT e api.telegram.org, log em `/var/log/agencia-nexo`); testes dos hooks (Read e Bash em `00_brutos/` bloqueados; `python -m agencia` permitido; encadeamento e redirecionamento bloqueados).
 - **F1 — Ingestão.** `ingerir` (hash, manifesto, cadeia de custódia 158-A a 158-F, classificação por heurística de conteúdo, extração PDF/XLSX/CSV/TXT), pseudonimizador consistente por caso, `cofre vazamento`, `render` básico.
 - **F2 — RIF.** `rif parse/resumo/envolvidos/comunicacoes/sobreposicao`. Fixture: RIF sintético com 12 comunicações, 2 sobrepostas.
 - **F3 — Bancário.** `banco importar/integridade/resumo/contrapartes/especie/fracionamento/passagem/circularidade/cruzar-alvos/linha-tempo`. Fixture: 3 contas, 1 lacuna, 1 ciclo A→B→C→A, 1 conta de passagem.
 - **F4 — Integração e qualidade.** `grafo construir/centrais/exportar`, `linha-tempo integrada`, `achados validar/verificar`.
-- **F5 — Saídas e canal.** `matrizes`, `render` (docx reidentificado), `handoff` (compatível com `handoff_schema.json` da camada `comum/` — peça o arquivo), teste headless `claude -p "/status TESTE"`.
+- **F5 — Saídas e canal.** `matrizes`, `render` (docx reidentificado), `handoff` (compatível com `handoff_schema.json` da camada `comum/` — peça o arquivo), teste headless `ops/teste_headless.sh TESTE` (`codex exec`).
 - **F6 — Telemático, societário, cripto.** `tel`, `soc`, `cripto` conforme os agentes.
 
 ## Relatório de fim de fase
