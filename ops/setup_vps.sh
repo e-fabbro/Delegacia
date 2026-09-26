@@ -162,8 +162,9 @@ cat <<EOF
 CONCLUÍDO.
 Depois de executar:
   - montar o volume:            nexo-montar-casos            (a cada reboot; pede a senha)
-  - autenticar o Claude Code:   sudo -u ${NEXO_USER} -i claude   (se usar login OAuth, liberar
-                                temporariamente os hosts de login em HOSTS_PERMITIDOS ou usar ANTHROPIC_API_KEY)
+  - autenticar o Claude Code:   sudo -u ${NEXO_USER} -i claude   (login OAuth da conta do Fabbro; os hosts de
+                                login/renovação do token entram em HOSTS_PERMITIDOS — ver docs/PROMPT_FINALIZACAO_VPS.md E1.
+                                Não usar ANTHROPIC_API_KEY.)
   - testar o bloqueio:          sudo -u ${NEXO_USER} -i bash -c 'curl -sS -m 5 https://example.com || echo BLOQUEADO'
   - ver descartes:              journalctl -k | grep nexo-egress-drop
   - atualizar código:           como root, git -C ${REPO_DIR} pull && uv sync; depois chown -R ${NEXO_USER}

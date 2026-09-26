@@ -4,6 +4,7 @@ Agência de análise investigativa multiagente — DRCC/DECOR/PCDF.
 
 - Projeto: `docs/PROJETO.md`
 - Construção: `claude "[CONSTRUÇÃO] Leia docs/PROMPT_CONSTRUCAO.md e execute a Fase 0."`
+- Finalização na VPS (headless, Hermes, layouts reais): `docs/PROMPT_FINALIZACAO_VPS.md`
 - Operação: `/caso-novo`, `/ingerir`, `/analisar`, `/status`, `/diligencias`
 
 ## Desenvolvimento
