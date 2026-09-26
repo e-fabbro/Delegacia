@@ -5,7 +5,7 @@ Erros de uso saem em JSON no stderr com código 1.
 """
 import argparse
 
-from agencia import agregados, banco, caso, cofre, ingestao, layouts, render, rif, saida
+from agencia import achados, agregados, banco, caso, cofre, grafo, ingestao, integracao, layouts, render, rif, saida
 
 
 def _md(p: argparse.ArgumentParser) -> None:
@@ -195,6 +195,64 @@ def construir_parser() -> argparse.ArgumentParser:
     p.add_argument("--granularidade", choices=["dia", "semana", "mes"], default="mes")
     _filtros(p)
     p.set_defaults(fn=_banco(banco.linha_tempo, "linha_tempo", granularidade="granularidade"))
+
+    # ---- grafo (F4) ----
+    p_grafo = grupos.add_parser("grafo", help="grafo de vínculos")
+    sub = p_grafo.add_subparsers(dest="comando", required=True)
+
+    p = sub.add_parser("construir", help="deriva a tabela vinculos de transacoes, comunicacoes_rif, relacionamentos_ccs e achados")
+    p.add_argument("codinome")
+    p.add_argument("--sem-achados", dest="sem_achados", action="store_true", help="ignora 03_analises/*/achados.jsonl")
+    _md(p)
+    p.set_defaults(fn=lambda a: grafo.construir(a.codinome, sem_achados=a.sem_achados))
+
+    p = sub.add_parser("centrais", help="grau, intermediação, pontes, componentes, convergência de fontes")
+    p.add_argument("codinome")
+    p.add_argument("--top", type=int, default=10)
+    p.add_argument("--tipo", choices=grafo.TIPOS_ARESTA, help="só arestas deste tipo")
+    _md(p)
+    p.set_defaults(fn=lambda a: grafo.centrais(a.codinome, top=a.top, tipo=a.tipo))
+
+    p = sub.add_parser("exportar", help="04_produtos/grafo.html (autocontido), grafo.json ou grafo.graphml")
+    p.add_argument("codinome")
+    p.add_argument("--formato", choices=["html", "json", "graphml", "todos"], default="html")
+    _md(p)
+    p.set_defaults(fn=lambda a: grafo.exportar(a.codinome, formato=a.formato))
+
+    # ---- linha-tempo (F4) ----
+    p_lt = grupos.add_parser("linha-tempo", help="linha do tempo")
+    sub = p_lt.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("integrada", help="eventos de todas as fontes por período, com marcos e picos")
+    p.add_argument("codinome")
+    p.add_argument("--granularidade", choices=["dia", "semana", "mes"], default="mes")
+    p.add_argument("--entidade", metavar="PF-####|PJ-####|CT-####", help="só eventos que envolvem a entidade")
+    p.add_argument("--inicio", metavar="AAAA-MM-DD")
+    p.add_argument("--fim", metavar="AAAA-MM-DD")
+    _md(p)
+    p.set_defaults(fn=lambda a: integracao.integrada(a.codinome, granularidade=a.granularidade, entidade=a.entidade, inicio=a.inicio, fim=a.fim))
+
+    # ---- achados (F4) ----
+    p_ach = grupos.add_parser("achados", help="qualidade dos achados e produtos")
+    sub = p_ach.add_subparsers(dest="comando", required=True)
+
+    p = sub.add_parser("validar", help="schema, ids únicos, agente e doc_ids de 03_analises/<agente>/achados.jsonl")
+    p.add_argument("codinome")
+    p.add_argument("agente", nargs="?", help="pasta em 03_analises/ (padrão: todas)")
+    _md(p)
+    p.set_defaults(fn=lambda a: achados.validar(a.codinome, a.agente))
+
+    p = sub.add_parser("verificar", help="ponteiros resolvem, valores e entidades conferem com caso.db; --arquivo audita ancoragem de um .md")
+    p.add_argument("codinome")
+    p.add_argument("agente", nargs="?")
+    p.add_argument("--arquivo", metavar="REL", help="ex.: 03_analises/analista-rif/nota.md ou 04_produtos/informacao_analise_v1.md")
+    _md(p)
+    p.set_defaults(fn=lambda a: achados.verificar(a.codinome, a.agente, arquivo=a.arquivo))
+
+    p = sub.add_parser("diligencias", help="consolida as diligências sugeridas nos achados, por tipo, sem duplicatas")
+    p.add_argument("codinome")
+    p.add_argument("agente", nargs="?")
+    _md(p)
+    p.set_defaults(fn=lambda a: achados.diligencias(a.codinome, a.agente))
 
     # ---- render ----
     p = grupos.add_parser("render", help="reidentifica um produto e gera .md/.docx em 04_produtos/render/")

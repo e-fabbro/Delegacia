@@ -6,7 +6,7 @@ Cada fase acrescenta o seu DDL em `DDL_CASO` / `DDL_COFRE`; `inicializar` é ide
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 DDL_META = """
 create table if not exists meta (
@@ -141,7 +141,23 @@ create table if not exists agregados (
 );
 """
 
-DDL_CASO: list[str] = [DDL_META, DDL_DOCUMENTOS, DDL_RIF, DDL_BANCO]
+# F4
+DDL_INTEGRACAO = """
+create table if not exists vinculos (
+    origem         text not null,
+    destino        text not null,
+    tipo           text not null,
+    n              integer not null,
+    total_centavos integer not null default 0,
+    primeira       text,
+    ultima         text,
+    fontes         text not null default '[]',
+    papeis         text not null default '[]',
+    primary key (origem, destino, tipo)
+);
+"""
+
+DDL_CASO: list[str] = [DDL_META, DDL_DOCUMENTOS, DDL_RIF, DDL_BANCO, DDL_INTEGRACAO]
 DDL_COFRE: list[str] = [DDL_META, DDL_IDENTIDADES]
 
 

@@ -125,8 +125,8 @@ Detalhe completo em `.claude/agents/`.
 | telematica | `tel importar`, `tel normalizar`, `tel ips`, `tel sessoes`, `tel janela --inicio --fim` |
 | societario | `soc importar`, `soc qsa`, `soc compartilhados`, `soc cruzar-bancario` |
 | cripto | `cripto importar`, `cripto fluxos`, `cripto enderecos`, `cripto exchanges` |
-| integração | `grafo construir`, `grafo centrais`, `grafo exportar`, `linha-tempo integrada` |
-| qualidade | `achados validar`, `achados verificar` (resolve ponteiros e confere números no caso.db) |
+| integração | `grafo construir [--sem-achados]`, `grafo centrais [--top --tipo]`, `grafo exportar [--formato html\|json\|graphml\|todos]`, `linha-tempo integrada [--granularidade --entidade --inicio --fim]` |
+| qualidade | `achados validar [agente]`, `achados verificar [agente]` (resolve ponteiros e confere valores, entidades e datas no caso.db), `achados verificar --arquivo <md>` (ancoragem de nota/produto), `achados diligencias` |
 | saída | `matrizes`, `render`, `handoff` |
 
 Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pseudonimizada. Layouts de fonte (colunas do SIMBA/CCS, padrões textuais do RIF) ficam em `config/layouts/*.yaml` e são ajustados sem tocar no código; `AGENCIA_LAYOUTS` aponta para um diretório alternativo.
