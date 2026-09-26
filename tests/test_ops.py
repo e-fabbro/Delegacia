@@ -25,7 +25,7 @@ def test_setup_vps_cobre_requisitos_f0(raiz_projeto):
     assert "useradd" in texto and "nexo" in texto
     assert "gocryptfs" in texto and "/srv/casos" in texto
     assert "nft" in texto and "skuid" in texto
-    assert "api.anthropic.com" in texto and "api.telegram.org" in texto
+    assert "chatgpt.com" in texto and "api.telegram.org" in texto
     assert "/var/log/agencia-nexo" in texto
     # só gera: nenhum comando é executado durante os testes
     assert "exit 1" in texto  # aborta se não for root
@@ -65,11 +65,31 @@ def test_so_login_chatgpt_sem_chave_de_api(raiz_projeto):
                 assert not chave.search(restante), f"{arq.name}: {linha.strip()}"
 
 
-def test_hosts_permitidos_iguais_e_cobrem_oauth(raiz_projeto):
+def test_hosts_permitidos_iguais_e_cobrem_login_chatgpt(raiz_projeto):
     setup = _hosts((raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8"))
     refresh = _hosts((raiz_projeto / "ops" / "nexo_egress_refresh.sh").read_text(encoding="utf-8"))
     assert setup == refresh
-    assert {"api.anthropic.com", "api.telegram.org", "console.anthropic.com", "platform.claude.com"} <= setup
+    assert {"chatgpt.com", "auth.openai.com", "api.openai.com", "api.telegram.org"} <= setup
+    assert not any("anthropic" in h or "claude" in h for h in setup)
+
+
+def test_setup_configura_codex_do_nexo(raiz_projeto):
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert ".codex/config.toml" in texto
+    for trecho in ('sandbox_mode = "workspace-write"', 'approval_policy = "never"', 'web_search = "disabled"',
+                   "unified_exec = false", "hooks = true", "network_access = false",
+                   'writable_roots = ["${CASOS_DIR}"]', 'trust_level = "trusted"'):
+        assert trecho in texto, trecho
+    assert "codex login --device-auth" in texto
+    assert "claude" not in texto.lower()
+
+
+def test_repositorio_so_leitura_para_o_nexo(raiz_projeto):
+    # workspace-write deixa o modelo gravar no diretório de trabalho: o repositório (hooks, agentes)
+    # tem de ser root:root para o nexo não conseguir desligar os próprios guardas.
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert 'chown -R root:root "${REPO_DIR}"' in texto
+    assert 'chown -R "${NEXO_USER}:${NEXO_USER}" "${REPO_DIR}"' not in texto
 
 
 def test_venv_usa_python_do_sistema(raiz_projeto):
