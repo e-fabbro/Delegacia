@@ -9,7 +9,8 @@
 #   - sandbox workspace-write, sem rede; só /srv/casos gravável além do repositório (que é root:root,
 #     só leitura para o nexo — o modelo não consegue editar hooks nem agentes);
 #   - approval_policy=never (headless), unified_exec desligado (write_stdin não passaria pelo hook),
-#     busca web desligada (ferramenta hospedada não passa pelo hook);
+#     busca web desligada (ferramenta hospedada não passa pelo hook); apps, plugins, navegador,
+#     computer use e geração de imagem desligados (não passam pelo hook de shell e buscam na rede);
 #   - hooks do projeto (.codex/hooks.json) ativos sem prompt de confiança; a origem é o repositório root:root.
 # Autenticação: login ChatGPT do próprio nexo (~nexo/.codex). Chave de API nunca: removida do ambiente.
 # Eventos JSONL e stderr do Codex ficam no log do caso (volume cifrado), nunca em /var/log.
@@ -64,6 +65,14 @@ printf '%s\n' "${PROMPT}" | env -u OPENAI_API_KEY -u CODEX_API_KEY -u ANTHROPIC_
     -c 'sandbox_workspace_write.network_access=false' \
     -c 'features.unified_exec=false' \
     -c 'web_search="disabled"' \
+    -c 'features.apps=false' \
+    -c 'features.plugins=false' \
+    -c 'features.remote_plugin=false' \
+    -c 'features.browser_use=false' \
+    -c 'features.browser_use_external=false' \
+    -c 'features.computer_use=false' \
+    -c 'features.in_app_browser=false' \
+    -c 'features.image_generation=false' \
     --dangerously-bypass-hook-trust \
     --json \
     -o "${ULTIMA}" \

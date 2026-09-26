@@ -23,6 +23,17 @@ printf 'CASO TESTE · fase status concluída\nMaterial: 3 docs & "aspas"' > "$sa
 """
 
 
+# Ferramentas do Codex que não passam pelo hook de shell ou buscam coisas na rede: desligadas.
+FERRAMENTAS_DESLIGADAS = ("apps", "plugins", "remote_plugin", "browser_use", "browser_use_external",
+                          "computer_use", "in_app_browser", "image_generation")
+
+
+def test_config_do_nexo_desliga_as_mesmas_ferramentas(raiz_projeto):
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    for f in FERRAMENTAS_DESLIGADAS:
+        assert f"{f} = false" in texto, f
+
+
 @pytest.fixture
 def ambiente(tmp_path, raiz_projeto):
     binario = tmp_path / "bin"
@@ -72,7 +83,8 @@ def test_codex_travado(raiz_projeto, ambiente):
     assert "--dangerously-bypass-approvals-and-sandbox" not in args
     configs = [args[i + 1] for i, a in enumerate(args) if a == "-c"]
     for esperado in ('approval_policy="never"', "features.unified_exec=false",
-                     'web_search="disabled"', "sandbox_workspace_write.network_access=false"):
+                     'web_search="disabled"', "sandbox_workspace_write.network_access=false",
+                     *(f"features.{f}=false" for f in FERRAMENTAS_DESLIGADAS)):
         assert esperado in configs, esperado
     ambiente_filho = (tmp / "env").read_text()
     assert "OPENAI_API_KEY" not in ambiente_filho and "ANTHROPIC_API_KEY" not in ambiente_filho
