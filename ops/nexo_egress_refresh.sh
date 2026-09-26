@@ -5,7 +5,7 @@
 # nunca há janela sem IP válido durante o refresh (acrescenta, não limpa).
 set -euo pipefail
 
-HOSTS_PERMITIDOS="api.anthropic.com api.telegram.org"
+HOSTS_PERMITIDOS="api.anthropic.com console.anthropic.com platform.claude.com claude.ai api.telegram.org"
 TABELA="inet nexo_egress"
 
 for host in ${HOSTS_PERMITIDOS}; do
