@@ -226,4 +226,5 @@ def test_scripts_de_operacao_sao_bash_valido():
         p = subprocess.run(["bash", "-n", str(RAIZ / rel)], capture_output=True, text=True)
         assert p.returncode == 0, (rel, p.stderr)
     texto = (RAIZ / "hermes" / "nexo_run.sh").read_text(encoding="utf-8")
-    assert "sudo" in texto and "--output-format json" in texto and "nohup" in texto
+    # runtime Codex: ações delegadas ao ops/nexo_exec.sh; longas em segundo plano com .json/.done
+    assert "ops/nexo_exec.sh" in texto and "nohup" in texto and "em_execucao" in texto and ".done" in texto
