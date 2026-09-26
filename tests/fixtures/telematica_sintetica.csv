@@ -1,0 +1,15 @@
+ACCOUNT_ID;EMAIL;EVENTO;DATA_HORA_UTC;IP;PORTA;USER_AGENT;EMAIL_RECUPERACAO;TELEFONE_RECUPERACAO
+acct-7781;maria.dores@example.com;LOGIN;2026-03-09 22:10:05;177.10.20.30;41234;Mozilla/5.0 (Android 14, Mobile) Chrome/122;jcp@example.org;(61) 99876-5432
+acct-7781;maria.dores@example.com;ACESSO;2026-03-09 22:25:40;177.10.20.30;41234;Mozilla/5.0 (Android 14, Mobile) Chrome/122;;
+acct-7781;maria.dores@example.com;LOGOUT;2026-03-09 22:41:00;177.10.20.30;41234;Mozilla/5.0 (Android 14, Mobile) Chrome/122;;
+acct-7781;maria.dores@example.com;LOGIN;2026-03-10 14:20:11;100.72.5.9;;Mozilla/5.0 (Android 14, Mobile) Chrome/122;;
+acct-7781;maria.dores@example.com;ACESSO;2026-03-10 14:31:50;100.72.5.9;;Mozilla/5.0 (Android 14, Mobile) Chrome/122;;
+acct-7781;maria.dores@example.com;ACESSO;2026-03-10 14:33:02;100.72.5.9;;Mozilla/5.0 (Android 14, Mobile) Chrome/122;;
+acct-7781;maria.dores@example.com;LOGOUT;2026-03-10 15:05:00;100.72.5.9;;Mozilla/5.0 (Android 14, Mobile) Chrome/122;;
+acct-7781;maria.dores@example.com;LOGIN;2026-03-12 01:00:00;177.10.20.30;50001;Mozilla/5.0 (Android 14, Mobile) Chrome/122;;
+acct-9932;jcp@example.org;LOGIN;2026-03-10 14:00:00;189.40.60.80;61000;Mozilla/5.0 (Windows NT 10.0) Firefox/123;;61 3345-6789
+acct-9932;jcp@example.org;ACESSO;2026-03-10 14:30:00;189.40.60.80;61000;Mozilla/5.0 (Windows NT 10.0) Firefox/123;;
+acct-9932;jcp@example.org;TROCA_SENHA;2026-03-10 14:35:00;189.40.60.80;61000;Mozilla/5.0 (Windows NT 10.0) Firefox/123;maria.dores@example.com;
+acct-9932;jcp@example.org;LOGOUT;2026-03-10 16:00:00;189.40.60.80;61000;Mozilla/5.0 (Windows NT 10.0) Firefox/123;;
+acct-9932;jcp@example.org;LOGIN;2026-04-01 09:00:00;177.10.20.30;41234;Mozilla/5.0 (Windows NT 10.0) Firefox/123;;
+acct-9932;jcp@example.org;LOGOUT;2026-04-01 09:20:00;177.10.20.30;41234;Mozilla/5.0 (Windows NT 10.0) Firefox/123;;

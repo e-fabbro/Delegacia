@@ -5,11 +5,33 @@ Erros de uso saem em JSON no stderr com código 1.
 """
 import argparse
 
-from agencia import caso, cofre, ingestao, render, saida
+from agencia import achados, agregados, arquivo, banco, caso, cofre, cripto, grafo, handoff, ingestao, integracao, layouts, matrizes, render, rif, saida, soc, tel
 
 
 def _md(p: argparse.ArgumentParser) -> None:
     p.add_argument("--md", action="store_true", help="saída em tabela Markdown")
+
+
+def _filtros(p: argparse.ArgumentParser, conta: bool = True) -> None:
+    if conta:
+        p.add_argument("--conta", metavar="CT-####", help="restringe a uma conta")
+    p.add_argument("--inicio", metavar="AAAA-MM-DD")
+    p.add_argument("--fim", metavar="AAAA-MM-DD")
+    p.add_argument("--doc", metavar="DOC-ID", help="restringe a um documento")
+    p.add_argument("--salvar", action="store_true", help="grava o resultado em 03_analises/_agg/ e devolve ponteiros agg#")
+    _md(p)
+
+
+def _banco(fn, comando: str, **params):
+    """Executa uma análise bancária e, com --salvar, registra o agregado (fonte citável)."""
+    def executar(a):
+        filtros = {k: getattr(a, k) for k in ("conta", "inicio", "fim", "doc") if hasattr(a, k)}
+        extras = {k: getattr(a, v) for k, v in params.items()}
+        resultado = fn(a.codinome, **extras, **filtros)
+        if getattr(a, "salvar", False):
+            resultado["salvo"] = agregados.salvar(a.codinome, f"banco_{comando}", {**extras, **{k: v for k, v in filtros.items() if v}}, resultado)
+        return resultado
+    return executar
 
 
 def construir_parser() -> argparse.ArgumentParser:
@@ -40,6 +62,25 @@ def construir_parser() -> argparse.ArgumentParser:
     _md(p)
     p.set_defaults(fn=lambda a: caso.estado(a.codinome, sets=a.sets, adds=a.adds))
 
+    p = sub.add_parser("arquivar", help="pacote cifrado (AES-256-GCM, senha em AGENCIA_ARQUIVO_SENHA ou --senha-arquivo), verificação e, com --apagar, descarte")
+    p.add_argument("codinome")
+    p.add_argument("--destino", metavar="DIR", help="padrão: <raiz dos casos>/_arquivo/")
+    p.add_argument("--apagar", action="store_true", help="remove o diretório de trabalho após verificar o pacote")
+    p.add_argument("--sem-cifrar", dest="sem_cifrar", action="store_true", help="gera tar.gz em claro (só com autorização expressa)")
+    p.add_argument("--senha-arquivo", dest="senha_arquivo", metavar="ARQ", help="arquivo com a senha (nunca passe a senha na linha de comando)")
+    p.add_argument("--forcar", action="store_true", help="arquiva mesmo fora da fase 'concluido'")
+    _md(p)
+    p.set_defaults(fn=lambda a: arquivo.arquivar(a.codinome, destino=a.destino, apagar=a.apagar, sem_cifrar=a.sem_cifrar,
+                                                 senha_arquivo=a.senha_arquivo, forcar=a.forcar))
+
+    p = sub.add_parser("desarquivar", help="restaura um pacote (.tar.gz.enc ou .tar.gz) num diretório")
+    p.add_argument("pacote")
+    p.add_argument("--destino", required=True, metavar="DIR")
+    p.add_argument("--sem-cifrar", dest="sem_cifrar", action="store_true")
+    p.add_argument("--senha-arquivo", dest="senha_arquivo", metavar="ARQ")
+    _md(p)
+    p.set_defaults(fn=lambda a: arquivo.desarquivar(a.pacote, a.destino, sem_cifrar=a.sem_cifrar, senha_arquivo=a.senha_arquivo))
+
     # ---- ingerir ----
     p = grupos.add_parser("ingerir", help="ingere os brutos novos: hash, custódia, classificação, extração, pseudonimização")
     p.add_argument("codinome")
@@ -57,12 +98,269 @@ def construir_parser() -> argparse.ArgumentParser:
     _md(p)
     p.set_defaults(fn=lambda a: cofre.vazamento(a.codinome, arquivo=a.arquivo))
 
-    # ---- render ----
-    p = grupos.add_parser("render", help="reidentifica um produto e gera .md/.docx em 04_produtos/render/")
+    # ---- rif (F2) ----
+    p_rif = grupos.add_parser("rif", help="Relatório de Inteligência Financeira (COAF)")
+    sub = p_rif.add_subparsers(dest="comando", required=True)
+
+    p = sub.add_parser("parse", help="extrai cabeçalho e comunicações do extraído para caso.db")
     p.add_argument("codinome")
-    p.add_argument("arquivo", help="relativo a 04_produtos/, ex.: informacao_analise_v1.md")
+    p.add_argument("doc_id")
+    p.add_argument("--forcar", action="store_true", help="parseia mesmo se o tipo não for RIF")
     _md(p)
-    p.set_defaults(fn=lambda a: render.render(a.codinome, a.arquivo))
+    p.set_defaults(fn=lambda a: rif.parse(a.codinome, a.doc_id, forcar=a.forcar))
+
+    p = sub.add_parser("resumo", help="cabeçalho(s), contagens por tipo/comunicante, soma bruta e piso consolidado")
+    p.add_argument("codinome")
+    p.add_argument("doc_id", nargs="?")
+    _md(p)
+    p.set_defaults(fn=lambda a: rif.resumo(a.codinome, a.doc_id))
+
+    p = sub.add_parser("comunicacoes", help="lista as comunicações (filtros: --doc, --envolvido, --tipo, --limite)")
+    p.add_argument("codinome")
+    p.add_argument("--doc", metavar="DOC-ID")
+    p.add_argument("--envolvido", metavar="PF-####|PJ-####")
+    p.add_argument("--tipo", choices=["COS", "COA"])
+    p.add_argument("--limite", type=int)
+    _md(p)
+    p.set_defaults(fn=lambda a: rif.comunicacoes(a.codinome, doc=a.doc, envolvido=a.envolvido, tipo=a.tipo, limite=a.limite))
+
+    p = sub.add_parser("envolvidos", help="consolidado por envolvido (sem somar comunicações sobrepostas)")
+    p.add_argument("codinome")
+    p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: rif.envolvidos(a.codinome, doc=a.doc))
+
+    p = sub.add_parser("sobreposicao", help="comunicações do mesmo titular com períodos sobrepostos")
+    p.add_argument("codinome")
+    p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: rif.sobreposicao(a.codinome, doc=a.doc))
+
+    # ---- banco (F3) ----
+    p_banco = grupos.add_parser("banco", help="dados bancários (SIMBA, CCS, extratos)")
+    sub = p_banco.add_subparsers(dest="comando", required=True)
+
+    p = sub.add_parser("importar", help="importa as tabelas extraídas de um documento (layout em config/layouts/)")
+    p.add_argument("codinome")
+    p.add_argument("doc_id")
+    p.add_argument("--layout", help="força um layout (simba, ccs)")
+    _md(p)
+    p.set_defaults(fn=lambda a: banco.importar(a.codinome, a.doc_id, layout=a.layout))
+
+    p = sub.add_parser("lancamentos", help="lista lançamentos com filtros")
+    p.add_argument("codinome")
+    p.add_argument("--contraparte", metavar="PF-####|PJ-####|CT-####")
+    p.add_argument("--limite", type=int, default=50)
+    _filtros(p)
+    p.set_defaults(fn=_banco(banco.lancamentos, "lancamentos", contraparte="contraparte", limite="limite"))
+
+    p = sub.add_parser("integridade", help="lacunas, saldo reconstruído, OD vazio, duplicidades, contas CCS sem extrato")
+    p.add_argument("codinome")
+    p.add_argument("--lacuna-dias", dest="lacuna_dias", type=int, default=30)
+    p.add_argument("--conta", metavar="CT-####")
+    p.add_argument("--doc", metavar="DOC-ID")
+    p.add_argument("--salvar", action="store_true")
+    _md(p)
+    p.set_defaults(fn=_banco(banco.integridade, "integridade", lacuna_dias="lacuna_dias"))
+
+    p = sub.add_parser("resumo", help="por conta: período, lançamentos, créditos, débitos, maiores operações")
+    p.add_argument("codinome")
+    _filtros(p)
+    p.set_defaults(fn=_banco(banco.resumo, "resumo"))
+
+    p = sub.add_parser("contrapartes", help="por conta, contrapartes ranqueadas por volume")
+    p.add_argument("codinome")
+    p.add_argument("--top", type=int, default=20)
+    _filtros(p)
+    p.set_defaults(fn=_banco(banco.contrapartes, "contrapartes", top="top"))
+
+    p = sub.add_parser("especie", help="depósitos e saques em espécie, por conta e local")
+    p.add_argument("codinome")
+    _filtros(p)
+    p.set_defaults(fn=_banco(banco.especie, "especie"))
+
+    p = sub.add_parser("fracionamento", help="operações abaixo do limiar que, juntas na janela, o ultrapassam")
+    p.add_argument("codinome")
+    p.add_argument("--limiar", type=float, default=10000.0, help="em reais (padrão 10000)")
+    p.add_argument("--janela", choices=["dia", "semana"], default="dia")
+    p.add_argument("--minimo", type=int, default=2, help="mínimo de operações no grupo")
+    _filtros(p)
+    p.set_defaults(fn=_banco(banco.fracionamento, "fracionamento", limiar="limiar", janela="janela", minimo="minimo"))
+
+    p = sub.add_parser("passagem", help="índice de passagem (créditos que saem em até N horas) e giro")
+    p.add_argument("codinome")
+    p.add_argument("--horas", type=int, default=48)
+    _filtros(p)
+    p.set_defaults(fn=_banco(banco.passagem, "passagem", horas="horas"))
+
+    p = sub.add_parser("circularidade", help="ciclos de transferência A→B→…→A entre contas/entidades do caso")
+    p.add_argument("codinome")
+    p.add_argument("--nivel", choices=["conta", "entidade"], default="conta")
+    p.add_argument("--max-comprimento", dest="max_comprimento", type=int, default=6)
+    p.add_argument("--incluir-terceiros", dest="incluir_terceiros", action="store_true",
+                   help="permite contrapartes sem extrato como nós intermediários")
+    _filtros(p, conta=False)
+    p.set_defaults(fn=_banco(banco.circularidade, "circularidade", nivel="nivel", max_comprimento="max_comprimento",
+                             incluir_terceiros="incluir_terceiros"))
+
+    p = sub.add_parser("cruzar-alvos", help="transferências diretas entre alvos do caso (e envolvidos do RIF com --fonte rif)")
+    p.add_argument("codinome")
+    p.add_argument("--fonte", choices=["rif"])
+    _filtros(p, conta=False)
+    p.set_defaults(fn=_banco(banco.cruzar_alvos, "cruzar_alvos", fonte="fonte"))
+
+    p = sub.add_parser("linha-tempo", help="movimentação por período com picos sinalizados")
+    p.add_argument("codinome")
+    p.add_argument("--granularidade", choices=["dia", "semana", "mes"], default="mes")
+    _filtros(p)
+    p.set_defaults(fn=_banco(banco.linha_tempo, "linha_tempo", granularidade="granularidade"))
+
+    # ---- grafo (F4) ----
+    p_grafo = grupos.add_parser("grafo", help="grafo de vínculos")
+    sub = p_grafo.add_subparsers(dest="comando", required=True)
+
+    p = sub.add_parser("construir", help="deriva a tabela vinculos de transacoes, comunicacoes_rif, relacionamentos_ccs e achados")
+    p.add_argument("codinome")
+    p.add_argument("--sem-achados", dest="sem_achados", action="store_true", help="ignora 03_analises/*/achados.jsonl")
+    _md(p)
+    p.set_defaults(fn=lambda a: grafo.construir(a.codinome, sem_achados=a.sem_achados))
+
+    p = sub.add_parser("centrais", help="grau, intermediação, pontes, componentes, convergência de fontes")
+    p.add_argument("codinome")
+    p.add_argument("--top", type=int, default=10)
+    p.add_argument("--tipo", choices=grafo.TIPOS_ARESTA, help="só arestas deste tipo")
+    _md(p)
+    p.set_defaults(fn=lambda a: grafo.centrais(a.codinome, top=a.top, tipo=a.tipo))
+
+    p = sub.add_parser("exportar", help="04_produtos/grafo.html (autocontido), grafo.json ou grafo.graphml")
+    p.add_argument("codinome")
+    p.add_argument("--formato", choices=["html", "json", "graphml", "todos"], default="html")
+    _md(p)
+    p.set_defaults(fn=lambda a: grafo.exportar(a.codinome, formato=a.formato))
+
+    # ---- linha-tempo (F4) ----
+    p_lt = grupos.add_parser("linha-tempo", help="linha do tempo")
+    sub = p_lt.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("integrada", help="eventos de todas as fontes por período, com marcos e picos")
+    p.add_argument("codinome")
+    p.add_argument("--granularidade", choices=["dia", "semana", "mes"], default="mes")
+    p.add_argument("--entidade", metavar="PF-####|PJ-####|CT-####", help="só eventos que envolvem a entidade")
+    p.add_argument("--inicio", metavar="AAAA-MM-DD")
+    p.add_argument("--fim", metavar="AAAA-MM-DD")
+    _md(p)
+    p.set_defaults(fn=lambda a: integracao.integrada(a.codinome, granularidade=a.granularidade, entidade=a.entidade, inicio=a.inicio, fim=a.fim))
+
+    # ---- achados (F4) ----
+    p_ach = grupos.add_parser("achados", help="qualidade dos achados e produtos")
+    sub = p_ach.add_subparsers(dest="comando", required=True)
+
+    p = sub.add_parser("validar", help="schema, ids únicos, agente e doc_ids de 03_analises/<agente>/achados.jsonl")
+    p.add_argument("codinome")
+    p.add_argument("agente", nargs="?", help="pasta em 03_analises/ (padrão: todas)")
+    _md(p)
+    p.set_defaults(fn=lambda a: achados.validar(a.codinome, a.agente))
+
+    p = sub.add_parser("verificar", help="ponteiros resolvem, valores e entidades conferem com caso.db; --arquivo audita ancoragem de um .md")
+    p.add_argument("codinome")
+    p.add_argument("agente", nargs="?")
+    p.add_argument("--arquivo", metavar="REL", help="ex.: 03_analises/analista-rif/nota.md ou 04_produtos/informacao_analise_v1.md")
+    _md(p)
+    p.set_defaults(fn=lambda a: achados.verificar(a.codinome, a.agente, arquivo=a.arquivo))
+
+    p = sub.add_parser("diligencias", help="consolida as diligências sugeridas nos achados, por tipo, sem duplicatas")
+    p.add_argument("codinome")
+    p.add_argument("agente", nargs="?")
+    _md(p)
+    p.set_defaults(fn=lambda a: achados.diligencias(a.codinome, a.agente))
+
+    # ---- tel (F6) ----
+    p_tel = grupos.add_parser("tel", help="dados telemáticos, ERB e bilhetagem")
+    sub = p_tel.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("importar", help="importa eventos (fuso: --fuso > coluna > nome da coluna > presunção por tipo)")
+    p.add_argument("codinome"); p.add_argument("doc_id")
+    p.add_argument("--fuso", help="ex.: UTC, America/Sao_Paulo, -03:00")
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.importar(a.codinome, a.doc_id, fuso=a.fuso))
+    p = sub.add_parser("normalizar", help="fuso de cada fonte (e reimporta --doc no --fuso dado)")
+    p.add_argument("codinome"); p.add_argument("--doc", metavar="DOC-ID"); p.add_argument("--fuso")
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.normalizar(a.codinome, doc=a.doc, fuso=a.fuso))
+    p = sub.add_parser("ips", help="IPs por identificador, portas, CGNAT sem porta, IPs compartilhados")
+    p.add_argument("codinome"); p.add_argument("--identificador"); p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.ips(a.codinome, identificador=a.identificador, doc=a.doc))
+    p = sub.add_parser("sessoes", help="sessões por identificador, dispositivos, identificadores vinculados, coincidências de ERB")
+    p.add_argument("codinome"); p.add_argument("--identificador"); p.add_argument("--doc", metavar="DOC-ID")
+    p.add_argument("--intervalo-min", dest="intervalo_min", type=int); p.add_argument("--tolerancia-erb-min", dest="tolerancia_erb_min", type=int, default=60)
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.sessoes(a.codinome, identificador=a.identificador, doc=a.doc, intervalo_min=a.intervalo_min, tolerancia_erb_min=a.tolerancia_erb_min))
+    p = sub.add_parser("janela", help="quem estava conectado e onde, entre --inicio e --fim")
+    p.add_argument("codinome"); p.add_argument("--inicio", required=True, metavar="'AAAA-MM-DD HH:MM:SS'"); p.add_argument("--fim", required=True)
+    p.add_argument("--fuso-entrada", dest="fuso_entrada", default="UTC", help="fuso em que --inicio/--fim foram dados (padrão UTC)")
+    p.add_argument("--identificador"); p.add_argument("--tolerancia-erb-min", dest="tolerancia_erb_min", type=int, default=60)
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.janela(a.codinome, a.inicio, a.fim, fuso_entrada=a.fuso_entrada, identificador=a.identificador, tolerancia_erb_min=a.tolerancia_erb_min))
+
+    # ---- soc (F6) ----
+    p_soc = grupos.add_parser("soc", help="dados societários")
+    sub = p_soc.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("importar", help="importa PJ e QSA (layout societario.yaml)")
+    p.add_argument("codinome"); p.add_argument("doc_id"); p.add_argument("--layout")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.importar(a.codinome, a.doc_id, layout=a.layout))
+    p = sub.add_parser("qsa", help="por PJ: abertura, situação, CNAE, capital, sócios/administradores com datas")
+    p.add_argument("codinome"); p.add_argument("--pj", metavar="PJ-####")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.qsa(a.codinome, pj=a.pj))
+    p = sub.add_parser("compartilhados", help="sócios, endereços e contatos compartilhados entre PJ")
+    p.add_argument("codinome")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.compartilhados(a.codinome))
+    p = sub.add_parser("cruzar-bancario", help="porte declarado × movimentação das contas da PJ")
+    p.add_argument("codinome")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.cruzar_bancario(a.codinome))
+
+    # ---- cripto (F6) ----
+    p_cr = grupos.add_parser("cripto", help="criptoativos e exchanges")
+    sub = p_cr.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("importar", help="importa movimentações de exchange (layout cripto.yaml)")
+    p.add_argument("codinome"); p.add_argument("doc_id"); p.add_argument("--layout")
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.importar(a.codinome, a.doc_id, layout=a.layout))
+    p = sub.add_parser("fluxos", help="por conta na exchange: fiat in/out, compras/vendas, cripto in/out por ativo")
+    p.add_argument("codinome"); p.add_argument("--cliente", metavar="PF-####|PJ-####"); p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.fluxos(a.codinome, cliente=a.cliente, doc=a.doc))
+    p = sub.add_parser("enderecos", help="endereços externos: recorrência, compartilhamento, volume por ativo")
+    p.add_argument("codinome"); p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.enderecos(a.codinome, doc=a.doc))
+    p = sub.add_parser("exchanges", help="exchanges, contas KYC e ligação dos depósitos fiat com as contas bancárias do caso")
+    p.add_argument("codinome"); p.add_argument("--doc", metavar="DOC-ID"); p.add_argument("--tolerancia-dias", dest="tolerancia_dias", type=int, default=2)
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.exchanges(a.codinome, doc=a.doc, tolerancia_dias=a.tolerancia_dias))
+
+    # ---- saídas (F5) ----
+    p = grupos.add_parser("matrizes", help="consolida tabelas do caso e das análises em 04_produtos/matrizes.xlsx (pseudonimizado)")
+    p.add_argument("codinome")
+    _md(p)
+    p.set_defaults(fn=lambda a: matrizes.matrizes(a.codinome))
+
+    p = grupos.add_parser("render", help="reidentifica um produto de 04_produtos/ (md→md+docx, xlsx, html, json) em 04_produtos/render/")
+    p.add_argument("codinome")
+    p.add_argument("arquivo", help="relativo a 04_produtos/, ex.: informacao_analise_v1.md, matrizes.xlsx, grafo.html")
+    p.add_argument("--ponteiros", choices=["legivel", "manter", "remover"], default="legivel",
+                   help="[F:DOC-003:tx#2] → [DOC-003, lançamento 2] (legivel, padrão), inalterado (manter) ou removido")
+    p.add_argument("--sem-docx", dest="sem_docx", action="store_true", help="para .md, gera só o .md reidentificado")
+    _md(p)
+    p.set_defaults(fn=lambda a: render.render(a.codinome, a.arquivo, ponteiros=a.ponteiros, docx_=not a.sem_docx))
+
+    p = grupos.add_parser("handoff", help="gera 04_produtos/handoff.json (pseudonimizado) para os pipelines de representação e relatório final")
+    p.add_argument("codinome")
+    p.add_argument("--reidentificar", action="store_true", help="grava também 04_produtos/render/handoff.json com identidades reais")
+    _md(p)
+    p.set_defaults(fn=lambda a: handoff.handoff(a.codinome, reidentificar=a.reidentificar))
 
     return raiz
 
@@ -71,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     args = construir_parser().parse_args(argv)
     try:
         resultado = args.fn(args)
-    except caso.ErroCaso as e:
+    except (caso.ErroCaso, layouts.ErroLayout) as e:
         return saida.erro(str(e))
     saida.emitir(resultado, md=getattr(args, "md", False))
     return 0

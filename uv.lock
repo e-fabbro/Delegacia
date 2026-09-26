@@ -18,6 +18,7 @@ name = "agencia"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "jsonschema" },
     { name = "markitdown" },
     { name = "networkx" },
@@ -35,6 +36,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=42" },
     { name = "jsonschema", specifier = ">=4.23" },
     { name = "markitdown", specifier = ">=0.1" },
     { name = "networkx", specifier = ">=3.3" },

@@ -119,17 +119,19 @@ Detalhe completo em `.claude/agents/`.
 
 | Grupo | Comandos |
 |---|---|
-| caso | `caso novo`, `caso status`, `caso estado`, `ingerir`, `cofre vazamento`, `caso arquivar` |
+| caso | `caso novo`, `caso status`, `caso estado`, `ingerir`, `cofre vazamento`, `caso arquivar [--destino --apagar --sem-cifrar --senha-arquivo --forcar]`, `caso desarquivar <pacote> --destino` |
 | rif | `rif parse`, `rif resumo`, `rif envolvidos`, `rif comunicacoes`, `rif sobreposicao` |
-| banco | `banco importar`, `banco integridade`, `banco resumo`, `banco contrapartes`, `banco especie`, `banco fracionamento`, `banco passagem`, `banco circularidade`, `banco cruzar-alvos`, `banco linha-tempo` |
-| telematica | `tel importar`, `tel normalizar`, `tel ips`, `tel sessoes`, `tel janela --inicio --fim` |
-| societario | `soc importar`, `soc qsa`, `soc compartilhados`, `soc cruzar-bancario` |
-| cripto | `cripto importar`, `cripto fluxos`, `cripto enderecos`, `cripto exchanges` |
-| integração | `grafo construir`, `grafo centrais`, `grafo exportar`, `linha-tempo integrada` |
-| qualidade | `achados validar`, `achados verificar` (resolve ponteiros e confere números no caso.db) |
-| saída | `matrizes`, `render`, `handoff` |
+| banco | `banco importar`, `banco lancamentos`, `banco integridade`, `banco resumo`, `banco contrapartes`, `banco especie`, `banco fracionamento`, `banco passagem`, `banco circularidade`, `banco cruzar-alvos`, `banco linha-tempo` (todas com `--conta/--inicio/--fim/--doc` e `--salvar`, que gera fonte `agg#`) |
+| telematica | `tel importar [--fuso]`, `tel normalizar [--doc --fuso]`, `tel ips`, `tel sessoes [--intervalo-min --tolerancia-erb-min]`, `tel janela --inicio --fim [--fuso-entrada]` (eventos em UTC com fuso de origem registrado; ponteiro `ev#`) |
+| societario | `soc importar`, `soc qsa [--pj]`, `soc compartilhados`, `soc cruzar-bancario` (ponteiro `qsa#`) |
+| cripto | `cripto importar`, `cripto fluxos [--cliente]`, `cripto enderecos`, `cripto exchanges [--tolerancia-dias]` (ponteiro `mov#`; quantidades por ativo, sem conversão) |
+| integração | `grafo construir [--sem-achados]`, `grafo centrais [--top --tipo]`, `grafo exportar [--formato html\|json\|graphml\|todos]`, `linha-tempo integrada [--granularidade --entidade --inicio --fim]` |
+| qualidade | `achados validar [agente]`, `achados verificar [agente]` (resolve ponteiros e confere valores, entidades e datas no caso.db), `achados verificar --arquivo <md>` (ancoragem de nota/produto), `achados diligencias` |
+| saída | `matrizes` (xlsx pseudonimizado com todas as tabelas do caso), `render <arquivo> [--ponteiros legivel\|manter\|remover] [--sem-docx]` (md→md+docx, xlsx, html, json reidentificados em `04_produtos/render/`), `handoff [--reidentificar]` (JSON validado por `schemas/handoff.schema.json`) |
 
-Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pseudonimizada.
+Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pseudonimizada. Layouts de fonte (colunas do SIMBA/CCS, padrões textuais do RIF) ficam em `config/layouts/*.yaml` e são ajustados sem tocar no código; `AGENCIA_LAYOUTS` aponta para um diretório alternativo.
+
+Convenções numéricas: valores em centavos inteiros internamente (saída em reais com 2 casas); datas ISO; ponteiro `tx#N` é a posição do lançamento no documento (1..n, ordem do arquivo); `com#N` é o número da comunicação no RIF. Consolidado de RIF por titular usa o **piso sem sobreposição** (maior valor de cada grupo de comunicações com períodos sobrepostos), nunca a soma bruta.
 
 ## 10. Segurança e conformidade
 
@@ -142,7 +144,7 @@ Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pse
 - Usuário Unix dedicado `nexo`; `/srv/casos` em volume cifrado (gocryptfs ou LUKS), montado manualmente após reboot.
 - Isolamento da Gutcha: a mesma VPS expõe webhook público do WhatsApp. O processo da Gutcha não pode ler `/srv/casos`. Ideal: VPS dedicada para a agência.
 - Egress do usuário `nexo` restrito a `api.anthropic.com` e `api.telegram.org` (nftables por UID).
-- SSH só por chave; backups cifrados; descarte do caso ao fim do IP (`caso arquivar` gera pacote cifrado e apaga o diretório de trabalho).
+- SSH só por chave; backups cifrados; descarte do caso ao fim do IP: `caso arquivar <COD>` exige fase `concluido` (ou `--forcar`), grava `<raiz>/_arquivo/<COD>_<ts>.tar.gz.enc` (todo o diretório do caso, inclusive brutos e cofre) cifrado com AES-256-GCM por bloco e chave scrypt da senha em `AGENCIA_ARQUIVO_SENHA` (ou `--senha-arquivo`), registra a custódia (acondicionamento dentro do pacote; descarte no sidecar `.arquivo.json` com hashes), verifica por decifragem e só apaga o diretório com `--apagar`. Sem senha só com `--sem-cifrar` explícito. `caso desarquivar` restaura e confere o hash. A senha fica com o Fabbro, fora da VPS; sem ela o pacote é irrecuperável.
 
 **Claude Code.**
 - `permissions.deny` bloqueia leitura de `00_brutos/` e `_cofre/`, rede e WebFetch/WebSearch.
@@ -152,7 +154,8 @@ Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pse
 
 ## 11. Integrações
 
-- **Pipelines DRCC**: `handoff.json` segue o `handoff_schema.json` da camada `comum/`; alimenta as seções de fatos da representação e do relatório final.
+- **Pipelines DRCC**: `handoff.json` segue o `handoff_schema.json` da camada `comum/`; alimenta as seções de fatos da representação e do relatório final. **Provisório**: até o schema real chegar, vale `schemas/handoff.schema.json`, e `agencia.handoff.MAPA_COMUM` registra a correspondência de campos prevista. O pacote em `04_produtos/` é pseudonimizado; `handoff --reidentificar` grava a versão com identidades em `04_produtos/render/`.
+- **Hermes/Telegram**: `hermes/nexo_run.sh` (instalado como `/usr/local/bin/nexo_run`, chamado via `sudo -u nexo`) encapsula `claude -p`; ações longas rodam em segundo plano com log em `/srv/casos/<COD>/log/`. `ops/teste_headless.sh` executa o critério de aceite 8 na VPS.
 - **custodia.py**: incorporado como `agencia.custodia`.
 - **Ferramenta de RIF (browser)** e **app de vínculos CNPJ**: reaproveitar parsers e visualização no `grafo exportar`.
 - **Vault Obsidian** (`_pessoas/PF`, `_pessoas/PJ`, `_identificadores`): exportação opcional, **somente pseudonimizada** (o vault sincroniza via Drive).

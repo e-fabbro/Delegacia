@@ -6,7 +6,7 @@ Cada fase acrescenta o seu DDL em `DDL_CASO` / `DDL_COFRE`; `inicializar` é ide
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 5
 
 DDL_META = """
 create table if not exists meta (
@@ -53,7 +53,192 @@ create table if not exists contadores (
 );
 """
 
-DDL_CASO: list[str] = [DDL_META, DDL_DOCUMENTOS]
+# F2
+DDL_RIF = """
+create table if not exists rif_cabecalho (
+    doc_id          text primary key,
+    numero          text,
+    data            text,
+    destinatario    text,
+    origem          text,
+    tipo_origem     text,
+    pedido          text,
+    periodo_inicio  text,
+    periodo_fim     text,
+    total_informado integer,
+    paginas         integer,
+    parseado_em     text not null
+);
+create table if not exists comunicacoes_rif (
+    doc_id           text not null,
+    num              integer not null,
+    pagina           integer,
+    tipo             text,
+    comunicante      text,
+    segmento         text,
+    data_comunicacao text,
+    periodo_inicio   text,
+    periodo_fim      text,
+    valor_centavos   integer,
+    titular          text,
+    envolvidos       text not null default '[]',
+    enquadramento    text,
+    informacoes      text,
+    texto            text,
+    primary key (doc_id, num)
+);
+"""
+
+# F3
+DDL_BANCO = """
+create table if not exists contas (
+    conta       text primary key,
+    banco       text,
+    titular     text,
+    doc_extrato text,
+    origem      text not null
+);
+create table if not exists relacionamentos_ccs (
+    doc_id text not null,
+    linha  integer not null,
+    pessoa text,
+    conta  text,
+    banco  text,
+    tipo   text,
+    inicio text,
+    fim    text,
+    primary key (doc_id, linha)
+);
+create table if not exists transacoes (
+    doc_id            text not null,
+    tx_id             integer not null,
+    conta             text not null,
+    banco             text,
+    data              text not null,
+    historico         text,
+    documento         text,
+    valor_centavos    integer not null,
+    natureza          text not null,
+    saldo_centavos    integer,
+    contraparte       text,
+    contraparte_conta text,
+    contraparte_banco text,
+    local             text,
+    tabela            text,
+    linha             integer,
+    primary key (doc_id, tx_id)
+);
+create index if not exists idx_transacoes_conta_data on transacoes (conta, data);
+create index if not exists idx_transacoes_contraparte on transacoes (contraparte);
+create table if not exists agregados (
+    nome       text primary key,
+    comando    text not null,
+    parametros text not null,
+    docs       text not null,
+    arquivo    text not null,
+    sha256     text not null,
+    criado_em  text not null
+);
+"""
+
+# F4
+DDL_INTEGRACAO = """
+create table if not exists vinculos (
+    origem         text not null,
+    destino        text not null,
+    tipo           text not null,
+    n              integer not null,
+    total_centavos integer not null default 0,
+    primeira       text,
+    ultima         text,
+    fontes         text not null default '[]',
+    papeis         text not null default '[]',
+    primary key (origem, destino, tipo)
+);
+"""
+
+# F6
+DDL_F6 = """
+create table if not exists tel_fontes (
+    doc_id      text primary key,
+    tipo        text not null,
+    fuso        text not null,
+    origem_fuso text not null,
+    eventos     integer not null,
+    importado_em text not null
+);
+create table if not exists eventos_telematicos (
+    doc_id        text not null,
+    ev_id         integer not null,
+    identificador text,
+    tipo          text,
+    ts_original   text,
+    fuso_origem   text,
+    ts_utc        text,
+    ip            text,
+    porta         integer,
+    dispositivo   text,
+    erb           text,
+    lac           text,
+    cell_id       text,
+    latitude      real,
+    longitude     real,
+    municipio     text,
+    contraparte   text,
+    duracao       integer,
+    vinculados    text not null default '[]',
+    descricao     text,
+    tabela        text,
+    linha         integer,
+    primary key (doc_id, ev_id)
+);
+create index if not exists idx_ev_ident_ts on eventos_telematicos (identificador, ts_utc);
+create table if not exists pj (
+    pj              text primary key,
+    doc_id          text,
+    abertura        text,
+    situacao        text,
+    cnae            text,
+    capital_centavos integer,
+    uf              text,
+    municipio       text,
+    endereco        text,
+    contatos        text not null default '[]'
+);
+create table if not exists pj_qsa (
+    doc_id       text not null,
+    linha        integer not null,
+    pj           text not null,
+    socio        text,
+    qualificacao text,
+    entrada      text,
+    saida        text,
+    primary key (doc_id, linha)
+);
+create table if not exists cripto_movs (
+    doc_id         text not null,
+    mov_id         integer not null,
+    exchange       text,
+    cliente        text,
+    conta_exchange text,
+    ts_utc         text,
+    tipo           text,
+    ativo          text,
+    rede           text,
+    quantidade     text,
+    valor_centavos integer,
+    endereco       text,
+    txid           text,
+    contraparte_banco text,
+    contraparte_conta text,
+    descricao      text,
+    tabela         text,
+    linha          integer,
+    primary key (doc_id, mov_id)
+);
+"""
+
+DDL_CASO: list[str] = [DDL_META, DDL_DOCUMENTOS, DDL_RIF, DDL_BANCO, DDL_INTEGRACAO, DDL_F6]
 DDL_COFRE: list[str] = [DDL_META, DDL_IDENTIDADES]
 
 
@@ -62,6 +247,13 @@ def conectar(caminho: Path) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute("pragma foreign_keys = on")
     return con
+
+
+def abrir_caso(caso_dir: Path) -> sqlite3.Connection:
+    """Abre caso.db garantindo o DDL da versão atual (migração idempotente de casos antigos)."""
+    caminho = caso_dir / "caso.db"
+    inicializar(caminho, DDL_CASO)
+    return conectar(caminho)
 
 
 def inicializar(caminho: Path, ddl: list[str]) -> None:

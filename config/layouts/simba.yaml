@@ -1,21 +1,29 @@
 # Mapeamento de colunas do SIMBA -> modelo interno.
-# PROVISÓRIO: confirmar contra o cabeçalho de um arquivo real antes da Fase 3.
+# PROVISÓRIO: confirmar contra o cabeçalho de um arquivo real antes do primeiro caso.
 # Chave = campo interno; valor = nomes de coluna aceitos (usa o primeiro que existir).
 extrato:
-  banco: [NUMERO_BANCO, BANCO]
+  banco: [NUMERO_BANCO, BANCO, COD_BANCO]
   agencia: [NUMERO_AGENCIA, AGENCIA]
   conta: [NUMERO_CONTA, CONTA]
-  data: [DATA_LANCAMENTO, DATA]
-  historico: [DESCRICAO_LANCAMENTO, HISTORICO]
-  documento: [NUMERO_DOCUMENTO, DOCUMENTO]
-  valor: [VALOR_TRANSACAO, VALOR]
-  natureza: [NATUREZA_LANCAMENTO, CD]        # C/D
+  titular: [NOME_TITULAR, TITULAR, CPF_CNPJ_TITULAR]
+  data: [DATA_LANCAMENTO, DATA, DATA_TRANSACAO]
+  historico: [DESCRICAO_LANCAMENTO, HISTORICO, DESCRICAO]
+  documento: [NUMERO_DOCUMENTO, DOCUMENTO, NUM_DOCUMENTO]
+  valor: [VALOR_TRANSACAO, VALOR, VALOR_LANCAMENTO]
+  natureza: [NATUREZA_LANCAMENTO, CD, NATUREZA, TIPO_LANCAMENTO, DEBITO_CREDITO]   # C/D
   saldo: [VALOR_SALDO, SALDO]
-  od_cpf_cnpj: [CPF_CNPJ_OD]
-  od_nome: [NOME_PESSOA_OD]
-  od_banco: [NUMERO_BANCO_OD]
-  od_agencia: [NUMERO_AGENCIA_OD]
-  od_conta: [NUMERO_CONTA_OD]
-  local: [LOCAL_TRANSACAO]
-formato_data: ["%d/%m/%Y", "%Y-%m-%d"]
+  od_cpf_cnpj: [CPF_CNPJ_OD, CPF_CNPJ_CONTRAPARTE]
+  od_nome: [NOME_PESSOA_OD, NOME_OD, NOME_CONTRAPARTE]
+  od_banco: [NUMERO_BANCO_OD, BANCO_OD]
+  od_agencia: [NUMERO_AGENCIA_OD, AGENCIA_OD]
+  od_conta: [NUMERO_CONTA_OD, CONTA_OD]
+  local: [LOCAL_TRANSACAO, LOCAL]
+# valores aceitos na coluna natureza
+natureza_credito: [C, CR, CREDITO, CRÉDITO, ENTRADA]
+natureza_debito: [D, DB, DEBITO, DÉBITO, SAIDA, SAÍDA]
+formato_data: ["%d/%m/%Y", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S"]
 separador_decimal: ","
+# históricos que caracterizam operação em espécie (regex, sem acentos, maiúsculas)
+especie: ['DEPOSITO EM ESPECIE', 'DEP(?:OSITO)?\.? ?DIN(?:HEIRO)?', '\bSAQUE', 'RETIRADA', '\bTAA\b', 'CAIXA ELETRONICO', 'ESPECIE']
+# históricos em que a ausência de contraparte é esperada (não contam como OD vazio anômalo)
+sem_contraparte_esperado: ['TARIFA', 'JUROS', '\bIOF\b', 'RENDIMENTO', 'CESTA', 'ESPECIE', 'SAQUE', 'DEPOSITO', 'ESTORNO']

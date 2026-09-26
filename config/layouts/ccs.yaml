@@ -1,0 +1,13 @@
+# Mapeamento de colunas do CCS (Cadastro de Clientes do SFN) -> modelo interno.
+# PROVISÓRIO: confirmar contra o cabeçalho de um arquivo real.
+relacionamentos:
+  pessoa: [CPF_CNPJ, CPF, CNPJ, CPF_CNPJ_TITULAR, DOCUMENTO]
+  nome: [NOME, NOME_TITULAR, NOME_PESSOA]
+  banco: [BANCO, NUMERO_BANCO, COD_BANCO, ISPB]
+  agencia: [AGENCIA, NUMERO_AGENCIA]
+  conta: [CONTA, NUMERO_CONTA]
+  tipo: [TIPO_RELACIONAMENTO, RELACIONAMENTO, VINCULO, TIPO]
+  inicio: [INICIO, DATA_INICIO, INICIO_RELACIONAMENTO]
+  fim: [FIM, DATA_FIM, FIM_RELACIONAMENTO]
+tipos_titular: [TITULAR, TITULAR PRINCIPAL, COTITULAR, CO-TITULAR]
+formato_data: ["%d/%m/%Y", "%Y-%m-%d"]

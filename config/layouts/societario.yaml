@@ -1,0 +1,26 @@
+# Dados societários (CNPJ/QSA, Junta Comercial, contratos) -> pj, pj_qsa.
+# Aceita uma linha por sócio (colunas da PJ repetidas) ou tabelas separadas de PJ e de QSA.
+# PROVISÓRIO: ajustar contra o extrato real (RFB/JUCIS).
+pj:
+  pj: [CNPJ, CNPJ_EMPRESA, CNPJ_PJ, NI]
+  razao: [RAZAO_SOCIAL, NOME_EMPRESARIAL, EMPRESA]
+  abertura: [ABERTURA, DATA_ABERTURA, DATA_INICIO_ATIVIDADE, CONSTITUICAO]
+  situacao: [SITUACAO, SITUACAO_CADASTRAL, STATUS]
+  cnae: [CNAE_PRINCIPAL, CNAE, ATIVIDADE_PRINCIPAL, CNAE_FISCAL]
+  capital: [CAPITAL_SOCIAL, CAPITAL]
+  uf: [UF, ESTADO]
+  municipio: [MUNICIPIO, CIDADE]
+  endereco: [ENDERECO, LOGRADOURO, ENDERECO_COMPLETO]
+  telefone: [TELEFONE, DDD_TELEFONE, FONE]
+  email: [EMAIL, E_MAIL, CORREIO_ELETRONICO]
+qsa:
+  socio: [SOCIO_CPF_CNPJ, CPF_CNPJ_SOCIO, SOCIO_DOCUMENTO, CPF_SOCIO, SOCIO]
+  socio_nome: [SOCIO_NOME, NOME_SOCIO]
+  qualificacao: [QUALIFICACAO, QUALIFICACAO_SOCIO, CARGO]
+  entrada: [ENTRADA, DATA_ENTRADA, DATA_ENTRADA_SOCIEDADE]
+  saida: [SAIDA, DATA_SAIDA, DATA_SAIDA_SOCIEDADE]
+qualificacoes_admin: ['ADMINISTRADOR', 'DIRETOR', 'PRESIDENTE', 'TITULAR']
+formato_data: ["%d/%m/%Y", "%Y-%m-%d"]
+separador_decimal: ","
+# meses de existência abaixo dos quais a PJ é "recente" no cruzamento bancário
+recente_meses: 12

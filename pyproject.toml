@@ -12,6 +12,7 @@ dependencies = [
     "jsonschema>=4.23",
     "networkx>=3.3",
     "python-docx>=1.1",
+    "cryptography>=42",      # cifragem do pacote de arquivamento (caso arquivar); já era dependência transitiva
 ]
 
 [dependency-groups]

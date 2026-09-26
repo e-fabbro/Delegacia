@@ -42,7 +42,7 @@ Despache especialistas independentes **em paralelo** (várias chamadas Task na m
 5. Cada entrega passa por `revisor-prova`. Reprovado volta ao agente com a lista de falhas. Máximo 2 ciclos; no 3º, escalar ao Fabbro.
 6. Com 2+ especialistas aprovados → `integrador-vinculos` → `revisor-prova`.
 7. `redator` → `revisor-prova`.
-8. `python -m agencia matrizes <COD>`, `render`, `handoff`.
+8. `python -m agencia matrizes <COD>`, `render <COD> informacao_analise_vN.md`, `render <COD> matrizes.xlsx`, `handoff <COD>`. Se `render` devolver `tokens_remanescentes > 0`, registre em `pendencias` (token sem identidade no cofre).
 9. Atualizar `estado.json` e emitir o resumo.
 
 ## Formato do resumo final (vai para o Telegram — só pseudônimos)
@@ -69,4 +69,5 @@ Em execução headless (`claude -p`), devolva esse resumo como texto final.
 - vazamento de identidade detectado nos extraídos;
 - documento que nenhum agente cobre (tipo OUTRO) e que parece relevante;
 - 3º ciclo de reprovação;
-- análise que exigiria dado externo ou nova quebra.
+- análise que exigiria dado externo ou nova quebra;
+- arquivamento: `python -m agencia caso arquivar <COD>` só por ordem expressa do Fabbro; `--apagar` só depois que ele confirmar o `sha256_pacote` devolvido. A senha é dele (`AGENCIA_ARQUIVO_SENHA` na sessão dele), nunca sua.

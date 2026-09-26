@@ -14,7 +14,9 @@ from pathlib import Path
 from agencia import caso, classificacao, cofre, custodia, db, extracao
 
 TIPOS = classificacao.TIPOS
-SUFIXOS = ("_OD", "_ORIGEM", "_DESTINO", "_REMETENTE", "_DESTINATARIO", "_PAGADOR", "_RECEBEDOR", "_FAVORECIDO", "_CONTRAPARTE")
+SUFIXOS = ("_OD", "_ORIGEM", "_DESTINO", "_REMETENTE", "_DESTINATARIO", "_PAGADOR", "_RECEBEDOR", "_FAVORECIDO", "_CONTRAPARTE",
+           "_CLIENTE", "_TITULAR", "_RECUPERACAO", "_A", "_B")
+PREFIXOS_GRUPO = ("SOCIO_", "ADMINISTRADOR_", "REPRESENTANTE_", "PROCURADOR_", "CLIENTE_", "TITULAR_")
 PREVIA_LINHAS = 10
 RE_INSTRUCAO = re.compile(
     r"ignore (as|todas as|suas|quaisquer) instru|desconsidere (as|suas) instru|system prompt|"
@@ -40,28 +42,33 @@ def _gravar_manifesto(d: Path, manifesto: list[dict]) -> None:
 # ---------- pseudonimização de tabelas ----------
 
 def _papel_coluna(nome: str) -> tuple[str | None, str]:
-    c = cofre.sem_acentos(nome).upper().strip()
-    sufixo = next((s for s in SUFIXOS if c.endswith(s)), "")
-    base = c[: -len(sufixo)] if sufixo else c
-    if "NUMERO_DOCUMENTO" in base or base in ("DOCUMENTO", "NUM_DOCUMENTO"):
-        return None, sufixo
-    if re.search(r"CPF|CNPJ|NI_|DOCUMENTO_PESSOA", base):
-        return "documento", sufixo
+    """(papel, grupo). Grupo = sufixo (_OD, _CONTRAPARTE...) ou prefixo (SOCIO_, CLIENTE_...) que liga documento+nome+conta da mesma pessoa."""
+    c = re.sub(r"\s+", "_", cofre.sem_acentos(nome).upper().strip())
+    grupo = next((s for s in SUFIXOS if c.endswith(s)), "")
+    base = c[: -len(grupo)] if grupo else c
+    if not grupo:
+        grupo = next((p for p in PREFIXOS_GRUPO if c.startswith(p)), "")
+        base = c[len(grupo):] if grupo else c
+    base = base.replace("_", " ")
+    if "NUMERO DOCUMENTO" in base or base in ("DOCUMENTO", "NUM DOCUMENTO", "TXID", "HASH"):
+        return None, grupo
+    if re.search(r"CPF|CNPJ|\bNI\b|DOCUMENTO PESSOA", base):
+        return "documento", grupo
     if re.search(r"\bNOME|RAZAO|TITULAR|PESSOA", base):
-        return "nome", sufixo
+        return "nome", grupo
     if re.search(r"AGENCIA", base):
-        return "agencia", sufixo
-    if re.search(r"CONTA", base) and not re.search(r"TIPO|SITUACAO|MODALIDADE", base):
-        return "conta", sufixo
-    if re.search(r"TELEFONE|CELULAR|\bFONE", base):
-        return "telefone", sufixo
+        return "agencia", grupo
+    if re.search(r"CONTA", base) and not re.search(r"TIPO|SITUACAO|MODALIDADE|ACCOUNT", base):
+        return "conta", grupo
+    if re.search(r"TELEFONE|CELULAR|\bFONE|MSISDN|ORIGINADOR|^NUMERO$|TERMINAL", base):
+        return "telefone", grupo
     if re.search(r"E-?MAIL", base):
-        return "email", sufixo
-    if re.search(r"ENDERECO|LOGRADOURO", base):
-        return "endereco", sufixo
-    if re.search(r"CHAVE", base):
-        return "pix", sufixo
-    return None, sufixo
+        return "email", grupo
+    if re.search(r"ENDERECO|LOGRADOURO", base) and not re.search(r"CARTEIRA|WALLET|\bIP\b", base):
+        return "endereco", grupo
+    if re.search(r"CHAVE", base) and not re.search(r"PUBLICA|PRIVADA", base):
+        return "pix", grupo
+    return None, grupo
 
 
 def _anonimizar_tabela(tab: extracao.Tabela, cf: cofre.Cofre) -> extracao.Tabela:

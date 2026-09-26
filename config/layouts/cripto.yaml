@@ -1,0 +1,30 @@
+# Extratos e respostas de exchanges -> cripto_movs.
+# PROVISÓRIO: cada exchange responde num formato; ajustar por exchange (ou usar --layout).
+movs:
+  exchange: [EXCHANGE, CORRETORA, PLATAFORMA, INSTITUICAO]
+  cliente: [CPF_CLIENTE, CNPJ_CLIENTE, CPF_CNPJ, DOCUMENTO_CLIENTE, CPF, NOME_CLIENTE, CLIENTE]
+  conta_exchange: [CONTA_EXCHANGE, ID_CLIENTE, USER_ID, ACCOUNT_ID, ID_CONTA]
+  data_hora: [DATA_HORA_UTC, DATA_HORA, TIMESTAMP, DATA, DATE]
+  tipo: [TIPO, OPERACAO, TIPO_OPERACAO, TRANSACTION_TYPE, SIDE]
+  ativo: [ATIVO, MOEDA, ASSET, COIN, CURRENCY, SYMBOL]
+  rede: [REDE, NETWORK, BLOCKCHAIN, CHAIN]
+  quantidade: [QUANTIDADE, QTD, AMOUNT, QUANTITY, VOLUME]
+  valor: [VALOR_BRL, VALOR, VALOR_REAIS, FIAT_VALUE, TOTAL_BRL]
+  endereco: [ENDERECO_CARTEIRA, ENDERECO, WALLET, ADDRESS, CARTEIRA, TO_ADDRESS, FROM_ADDRESS]
+  txid: [TXID, TX_HASH, HASH, TRANSACTION_ID]
+  contraparte_banco: [BANCO_CONTRAPARTE, BANCO, BANCO_ORIGEM, BANCO_DESTINO]
+  contraparte_agencia: [AGENCIA_CONTRAPARTE, AGENCIA, AGENCIA_ORIGEM, AGENCIA_DESTINO]
+  contraparte_conta: [CONTA_CONTRAPARTE, CONTA, CONTA_ORIGEM, CONTA_DESTINO, CONTA_BANCARIA]
+  descricao: [DESCRICAO, OBSERVACAO, MEMO, DETALHE]
+# normalização do tipo: primeiro padrão (regex, sem acentos, maiúsculas) que casar
+tipos:
+  deposito_fiat: ['DEPOSITO.?FIAT', 'DEPOSITO.?(BRL|REAIS|R\$)', 'FIAT.?IN', 'PIX.?RECEBIDO', 'TED.?RECEBIDA', 'DEPOSIT.?BRL']
+  saque_fiat: ['SAQUE.?FIAT', 'SAQUE.?(BRL|REAIS)', 'FIAT.?OUT', 'RETIRADA.?(BRL|REAIS)', 'WITHDRAW.?BRL', 'PIX.?ENVIADO']
+  compra: ['COMPRA', '\bBUY\b']
+  venda: ['VENDA', '\bSELL\b']
+  deposito_cripto: ['DEPOSITO.?CRIPTO', 'CRYPTO.?DEPOSIT', 'RECEBIMENTO', 'DEPOSIT', 'DEPOSITO']
+  saque_cripto: ['SAQUE.?CRIPTO', 'CRYPTO.?WITHDRAW', 'WITHDRAW', 'SAQUE', 'RETIRADA', 'TRANSFERENCIA.?EXTERNA']
+fiat: [BRL, REAIS, R$]
+formato_data: ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y"]
+fuso: UTC
+separador_decimal: ","

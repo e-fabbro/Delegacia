@@ -9,7 +9,8 @@ MINIMO = 4  # pontuação abaixo disto -> OUTRO
 PISTAS: dict[str, list[tuple[str, int]]] = {
     "RIF": [
         (r"RELATORIO DE INTELIGENCIA FINANCEIRA", 5), (r"\bCOAF\b", 3), (r"\bRIF\b", 2),
-        (r"COMUNICACAO", 1), (r"COMUNICANTE", 2),
+        (r"COMUNICACAO", 1), (r"COMUNICANTE", 2), (r"INFORMACOES ADICIONAIS", 2), (r"ENQUADRAMENTO", 1),
+        (r"\b(COS|COA)\b", 1),
     ],
     "SIMBA": [
         (r"\bSIMBA\b", 5), (r"NATUREZA_LANCAMENTO", 4), (r"CPF_CNPJ_OD", 4), (r"NUMERO_BANCO", 2),
@@ -33,18 +34,20 @@ PISTAS: dict[str, list[tuple[str, int]]] = {
     ],
     "SOCIETARIO": [
         (r"\bQSA\b|QUADRO SOCIETARIO|QUADRO DE SOCIOS", 5), (r"CAPITAL SOCIAL", 3), (r"\bCNAE\b", 3),
-        (r"CONTRATO SOCIAL|JUNTA COMERCIAL", 3), (r"\bSOCIO", 1),
+        (r"CONTRATO SOCIAL|JUNTA COMERCIAL", 3), (r"\bSOCIO", 1), (r"RAZAO SOCIAL", 2), (r"QUALIFICACAO", 2), (r"\bABERTURA\b", 1),
     ],
     "CRIPTO": [
         (r"BITCOIN|\bBTC\b|\bETH\b|USDT|TETHER", 3), (r"EXCHANGE|CORRETORA DE CRIPTO", 3),
-        (r"BLOCKCHAIN|WALLET|CARTEIRA DIGITAL|ENDERECO DA CARTEIRA", 3), (r"CRIPTO", 2),
+        (r"BLOCKCHAIN|WALLET|CARTEIRA DIGITAL|ENDERECO (DA )?CARTEIRA", 3), (r"CRIPTO", 2), (r"\bTXID\b", 2),
     ],
 }
 
 
 def pontuar(texto: str) -> dict[str, int]:
     plano = sem_acentos(texto).upper()
-    return {tipo: sum(peso for padrao, peso in pistas if re.search(padrao, plano)) for tipo, pistas in PISTAS.items()}
+    espacos = plano.replace("_", " ")          # cabeçalhos CAPITAL_SOCIAL, CNAE_PRINCIPAL etc.
+    return {tipo: sum(peso for padrao, peso in pistas if re.search(padrao, plano) or re.search(padrao, espacos))
+            for tipo, pistas in PISTAS.items()}
 
 
 def classificar(nome_arquivo: str, texto: str, cabecalhos: list[str] | None = None) -> tuple[str, float]:
