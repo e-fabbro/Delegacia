@@ -150,3 +150,10 @@ def test_operacao_documentada(raiz_projeto):
                    "caso arquivar", "--senha-arquivo", "caso desarquivar", "_arquivo", "ponte-nexo", "usage limit"):
         assert trecho in texto, trecho
     assert "ANTHROPIC_API_KEY" not in texto and "OPENAI_API_KEY" not in texto
+
+
+def test_ambiente_local_nao_versionado(raiz_projeto):
+    # .venv (diretório ou atalho) nunca entra no git: no CI o `uv sync` não conseguiria criá-lo.
+    import subprocess as sp
+    rastreados = sp.run(["git", "-C", str(raiz_projeto), "ls-files", ".venv"], capture_output=True, text=True).stdout
+    assert rastreados.strip() == ""
