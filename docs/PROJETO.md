@@ -119,7 +119,7 @@ Detalhe completo em `.claude/agents/`.
 
 | Grupo | Comandos |
 |---|---|
-| caso | `caso novo`, `caso status`, `caso estado`, `ingerir`, `cofre vazamento`, `caso arquivar` |
+| caso | `caso novo`, `caso status`, `caso estado`, `ingerir`, `cofre vazamento`, `caso arquivar [--destino --apagar --sem-cifrar --senha-arquivo --forcar]`, `caso desarquivar <pacote> --destino` |
 | rif | `rif parse`, `rif resumo`, `rif envolvidos`, `rif comunicacoes`, `rif sobreposicao` |
 | banco | `banco importar`, `banco lancamentos`, `banco integridade`, `banco resumo`, `banco contrapartes`, `banco especie`, `banco fracionamento`, `banco passagem`, `banco circularidade`, `banco cruzar-alvos`, `banco linha-tempo` (todas com `--conta/--inicio/--fim/--doc` e `--salvar`, que gera fonte `agg#`) |
 | telematica | `tel importar [--fuso]`, `tel normalizar [--doc --fuso]`, `tel ips`, `tel sessoes [--intervalo-min --tolerancia-erb-min]`, `tel janela --inicio --fim [--fuso-entrada]` (eventos em UTC com fuso de origem registrado; ponteiro `ev#`) |
@@ -144,7 +144,7 @@ Convenções numéricas: valores em centavos inteiros internamente (saída em re
 - Usuário Unix dedicado `nexo`; `/srv/casos` em volume cifrado (gocryptfs ou LUKS), montado manualmente após reboot.
 - Isolamento da Gutcha: a mesma VPS expõe webhook público do WhatsApp. O processo da Gutcha não pode ler `/srv/casos`. Ideal: VPS dedicada para a agência.
 - Egress do usuário `nexo` restrito a `api.anthropic.com` e `api.telegram.org` (nftables por UID).
-- SSH só por chave; backups cifrados; descarte do caso ao fim do IP (`caso arquivar` gera pacote cifrado e apaga o diretório de trabalho).
+- SSH só por chave; backups cifrados; descarte do caso ao fim do IP: `caso arquivar <COD>` exige fase `concluido` (ou `--forcar`), grava `<raiz>/_arquivo/<COD>_<ts>.tar.gz.enc` (todo o diretório do caso, inclusive brutos e cofre) cifrado com AES-256-GCM por bloco e chave scrypt da senha em `AGENCIA_ARQUIVO_SENHA` (ou `--senha-arquivo`), registra a custódia (acondicionamento dentro do pacote; descarte no sidecar `.arquivo.json` com hashes), verifica por decifragem e só apaga o diretório com `--apagar`. Sem senha só com `--sem-cifrar` explícito. `caso desarquivar` restaura e confere o hash. A senha fica com o Fabbro, fora da VPS; sem ela o pacote é irrecuperável.
 
 **Claude Code.**
 - `permissions.deny` bloqueia leitura de `00_brutos/` e `_cofre/`, rede e WebFetch/WebSearch.

@@ -5,7 +5,7 @@ Erros de uso saem em JSON no stderr com código 1.
 """
 import argparse
 
-from agencia import achados, agregados, banco, caso, cofre, cripto, grafo, handoff, ingestao, integracao, layouts, matrizes, render, rif, saida, soc, tel
+from agencia import achados, agregados, arquivo, banco, caso, cofre, cripto, grafo, handoff, ingestao, integracao, layouts, matrizes, render, rif, saida, soc, tel
 
 
 def _md(p: argparse.ArgumentParser) -> None:
@@ -61,6 +61,25 @@ def construir_parser() -> argparse.ArgumentParser:
                    help="acrescenta item a uma lista, sem duplicar")
     _md(p)
     p.set_defaults(fn=lambda a: caso.estado(a.codinome, sets=a.sets, adds=a.adds))
+
+    p = sub.add_parser("arquivar", help="pacote cifrado (AES-256-GCM, senha em AGENCIA_ARQUIVO_SENHA ou --senha-arquivo), verificação e, com --apagar, descarte")
+    p.add_argument("codinome")
+    p.add_argument("--destino", metavar="DIR", help="padrão: <raiz dos casos>/_arquivo/")
+    p.add_argument("--apagar", action="store_true", help="remove o diretório de trabalho após verificar o pacote")
+    p.add_argument("--sem-cifrar", dest="sem_cifrar", action="store_true", help="gera tar.gz em claro (só com autorização expressa)")
+    p.add_argument("--senha-arquivo", dest="senha_arquivo", metavar="ARQ", help="arquivo com a senha (nunca passe a senha na linha de comando)")
+    p.add_argument("--forcar", action="store_true", help="arquiva mesmo fora da fase 'concluido'")
+    _md(p)
+    p.set_defaults(fn=lambda a: arquivo.arquivar(a.codinome, destino=a.destino, apagar=a.apagar, sem_cifrar=a.sem_cifrar,
+                                                 senha_arquivo=a.senha_arquivo, forcar=a.forcar))
+
+    p = sub.add_parser("desarquivar", help="restaura um pacote (.tar.gz.enc ou .tar.gz) num diretório")
+    p.add_argument("pacote")
+    p.add_argument("--destino", required=True, metavar="DIR")
+    p.add_argument("--sem-cifrar", dest="sem_cifrar", action="store_true")
+    p.add_argument("--senha-arquivo", dest="senha_arquivo", metavar="ARQ")
+    _md(p)
+    p.set_defaults(fn=lambda a: arquivo.desarquivar(a.pacote, a.destino, sem_cifrar=a.sem_cifrar, senha_arquivo=a.senha_arquivo))
 
     # ---- ingerir ----
     p = grupos.add_parser("ingerir", help="ingere os brutos novos: hash, custódia, classificação, extração, pseudonimização")

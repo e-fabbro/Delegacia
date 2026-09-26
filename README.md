@@ -15,6 +15,7 @@ uv run python -m agencia -h  # CLI
 ```
 
 - A raiz dos casos é `/srv/casos`; para desenvolvimento e testes use `AGENCIA_CASOS=<dir>`.
+- Fim do caso: `caso arquivar <COD> --apagar` com a senha em `AGENCIA_ARQUIVO_SENHA` (pacote cifrado em `_arquivo/`); `caso desarquivar` restaura.
 - Layouts das fontes (SIMBA, CCS, RIF) em `config/layouts/*.yaml`; `AGENCIA_LAYOUTS=<dir>` troca o diretório.
 - Fixtures sintéticos: `uv run python tests/fixtures/gerar.py` (RIF de 12 comunicações, SIMBA de 3 contas, CCS, registros
   telemáticos em UTC, ERB em horário local, QSA de 3 PJ, extrato de exchange).

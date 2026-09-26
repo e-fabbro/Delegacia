@@ -69,4 +69,5 @@ Em execução headless (`claude -p`), devolva esse resumo como texto final.
 - vazamento de identidade detectado nos extraídos;
 - documento que nenhum agente cobre (tipo OUTRO) e que parece relevante;
 - 3º ciclo de reprovação;
-- análise que exigiria dado externo ou nova quebra.
+- análise que exigiria dado externo ou nova quebra;
+- arquivamento: `python -m agencia caso arquivar <COD>` só por ordem expressa do Fabbro; `--apagar` só depois que ele confirmar o `sha256_pacote` devolvido. A senha é dele (`AGENCIA_ARQUIVO_SENHA` na sessão dele), nunca sua.
