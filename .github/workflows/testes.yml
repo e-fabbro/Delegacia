@@ -1,0 +1,43 @@
+# CI da Agência Nexo: só testes com dados sintéticos. Nenhum acesso a casos, nenhum segredo.
+name: testes
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python do projeto
+        run: uv python install
+
+      - name: Dependências (lock)
+        run: uv sync --frozen
+
+      - name: Fixtures sintéticos são reproduzíveis
+        run: |
+          uv run python tests/fixtures/gerar.py
+          # xlsx carrega data de criação; só os formatos texto/pdf têm de ser idênticos ao versionado
+          git diff --exit-code -- tests/fixtures/*.csv tests/fixtures/*.txt tests/fixtures/*.pdf tests/fixtures/*.bin
+
+      - name: pytest
+        run: uv run pytest -q
+
+      - name: Nenhum identificador real nos fixtures
+        run: |
+          # CPF/CNPJ dos fixtures são sintéticos e válidos por construção; o teste de vazamento roda no pytest.
+          # Aqui só garantimos que nenhum caminho de caso real foi versionado por engano.
+          ! grep -rl "/srv/casos/" tests/fixtures/ || (echo "fixture cita /srv/casos" && exit 1)
