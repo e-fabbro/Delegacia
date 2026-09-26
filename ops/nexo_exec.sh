@@ -11,6 +11,7 @@
 #   - approval_policy=never (headless), unified_exec desligado (write_stdin não passaria pelo hook),
 #     busca web desligada (ferramenta hospedada não passa pelo hook); apps, plugins, navegador,
 #     computer use e geração de imagem desligados (não passam pelo hook de shell e buscam na rede);
+#   - no máximo 3 subagentes simultâneos (cota ChatGPT compartilhada; ver AGENTS.md, Economia);
 #   - hooks do projeto (.codex/hooks.json) ativos sem prompt de confiança; a origem é o repositório root:root.
 # Autenticação: login ChatGPT do próprio nexo (~nexo/.codex). Chave de API nunca: removida do ambiente.
 # Eventos JSONL e stderr do Codex ficam no log do caso (volume cifrado), nunca em /var/log.
@@ -65,6 +66,7 @@ printf '%s\n' "${PROMPT}" | env -u OPENAI_API_KEY -u CODEX_API_KEY -u ANTHROPIC_
     -c 'sandbox_workspace_write.network_access=false' \
     -c 'features.unified_exec=false' \
     -c 'web_search="disabled"' \
+    -c 'agents.max_concurrent_threads_per_session=3' \
     -c 'features.apps=false' \
     -c 'features.plugins=false' \
     -c 'features.remote_plugin=false' \

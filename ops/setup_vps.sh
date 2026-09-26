@@ -83,6 +83,9 @@ computer_use = false
 in_app_browser = false
 image_generation = false
 
+[agents]
+max_concurrent_threads_per_session = 3
+
 [sandbox_workspace_write]
 network_access = false
 writable_roots = ["${CASOS_DIR}"]

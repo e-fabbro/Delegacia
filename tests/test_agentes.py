@@ -50,3 +50,39 @@ def test_sem_runtime_claude(raiz_projeto):
     # CLAUDE.md fica só como ponteiro para sessões de construção
     ponteiro = (raiz_projeto / "CLAUDE.md").read_text(encoding="utf-8")
     assert "AGENTS.md" in ponteiro and len(ponteiro.splitlines()) < 15
+
+
+# ---------- modo econômico (cota ChatGPT compartilhada com os gateways do Hermes) ----------
+
+ESFORCO_ECONOMICO = {
+    "triagem-custodia": "low", "analista-rif": "low", "analista-bancario": "low", "analista-telematico": "low",
+    "analista-societario": "low", "analista-cripto": "low",
+    "integrador-vinculos": "medium", "redator": "medium",
+    "revisor-prova": "high",  # o gate de prova não economiza
+}
+
+
+@pytest.mark.parametrize("nome,esforco", ESFORCO_ECONOMICO.items())
+def test_esforco_economico(raiz_projeto, nome, esforco):
+    assert _agente(raiz_projeto, nome)["model_reasoning_effort"] == esforco
+
+
+def test_agents_md_modo_economico(raiz_projeto):
+    texto = (raiz_projeto / "AGENTS.md").read_text(encoding="utf-8")
+    for trecho in (
+        "## Economia",
+        "No máximo 3 subagentes abertos ao mesmo tempo",
+        "Feche cada subagente",
+        "timeout_ms",
+        "Não leia `docs/PROJETO.md`",
+        "Revisão em lote",
+        "você mesmo roda a ingestão",
+    ):
+        assert trecho in texto, trecho
+    # o gate continua: toda entrega passa pelo revisor
+    assert "toda entrega de especialista, do integrador e do redator passa pelo `revisor-prova`" in texto
+
+
+def test_revisor_aceita_lote(raiz_projeto):
+    instr = _agente(raiz_projeto, "revisor-prova")["developer_instructions"]
+    assert "Revisão em lote" in instr and "um parecer por agente" in instr

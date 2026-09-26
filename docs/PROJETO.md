@@ -55,13 +55,13 @@ Runtime: Codex CLI (`codex exec`) com login ChatGPT próprio do usuário `nexo` 
 |---|---|---|---|
 | Nexo-núcleo | — | plano, despacho, estado, resumo | padrão do perfil |
 | triagem-custodia | todos os brutos | manifesto, cadeia, extraídos pseudonimizados | low |
-| analista-rif | RIF (COAF) | achados RIF + consolidado por envolvido | medium |
-| analista-bancario | SIMBA, CCS, PIX, extratos | achados financeiros + matrizes | medium |
-| analista-telematico | respostas de provedores, ERB, bilhetagem | eventos normalizados em UTC, sessões, pendências de porta lógica | medium |
-| analista-societario | CNPJ/QSA, JUCIS, contratos | vínculos PJ, indícios de fachada | medium |
-| analista-cripto | extratos de exchange, endereços | fluxos fiat↔cripto, exchanges a oficiar | medium |
-| integrador-vinculos | caso.db + achados | grafo, convergências, matriz de hipóteses | high |
-| redator | achados aprovados | Informação de Análise | high |
+| analista-rif | RIF (COAF) | achados RIF + consolidado por envolvido | low |
+| analista-bancario | SIMBA, CCS, PIX, extratos | achados financeiros + matrizes | low |
+| analista-telematico | respostas de provedores, ERB, bilhetagem | eventos normalizados em UTC, sessões, pendências de porta lógica | low |
+| analista-societario | CNPJ/QSA, JUCIS, contratos | vínculos PJ, indícios de fachada | low |
+| analista-cripto | extratos de exchange, endereços | fluxos fiat↔cripto, exchanges a oficiar | low |
+| integrador-vinculos | caso.db + achados | grafo, convergências, matriz de hipóteses | medium |
+| redator | achados aprovados | Informação de Análise | medium |
 | revisor-prova | produto + achados | APROVADO / REPROVADO com lista | high |
 
 ## 5. Estrutura de um caso

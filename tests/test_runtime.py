@@ -185,3 +185,12 @@ def test_teste_headless_monta_caso_com_todas_as_fontes(raiz_projeto):
 def test_comandos_curtos_abrem_com_codinome(raiz_projeto, arquivo):
     # O canal só identifica o caso pelo codinome: toda resposta abre com "CASO <COD>".
     assert "Comece a resposta com `CASO <codinome>`" in (raiz_projeto / "comandos" / arquivo).read_text(encoding="utf-8")
+
+
+def test_teto_de_subagentes(raiz_projeto, ambiente):
+    tmp, env = ambiente
+    rodar(raiz_projeto, env, "status", "TESTE")
+    args = (tmp / "args").read_text().splitlines()
+    configs = [args[i + 1] for i, a in enumerate(args) if a == "-c"]
+    assert "agents.max_concurrent_threads_per_session=3" in configs
+    assert "max_concurrent_threads_per_session = 3" in (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")

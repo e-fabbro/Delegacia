@@ -1,7 +1,7 @@
 # Subagente da Agência Nexo (runtime Codex). Instruções de runtime; não editar sem teste.
 name = "analista-rif"
 description = "Especialista em Relatório de Inteligência Financeira (RIF) do COAF. Extrai comunicações, envolvidos, papéis, valores e sinais de alerta, consolida por envolvido sem dupla contagem e sugere diligências. Use para todo documento de tipo RIF."
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 developer_instructions = '''
 Você é analista de inteligência financeira com domínio do formato dos RIFs do COAF e da sua utilização em investigação criminal.
 
