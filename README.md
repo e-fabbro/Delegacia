@@ -16,7 +16,8 @@ uv run python -m agencia -h  # CLI
 
 - A raiz dos casos é `/srv/casos`; para desenvolvimento e testes use `AGENCIA_CASOS=<dir>`.
 - Layouts das fontes (SIMBA, CCS, RIF) em `config/layouts/*.yaml`; `AGENCIA_LAYOUTS=<dir>` troca o diretório.
-- Fixtures sintéticos: `uv run python tests/fixtures/gerar.py` (RIF de 12 comunicações, SIMBA de 3 contas, CCS).
+- Fixtures sintéticos: `uv run python tests/fixtures/gerar.py` (RIF de 12 comunicações, SIMBA de 3 contas, CCS, registros
+  telemáticos em UTC, ERB em horário local, QSA de 3 PJ, extrato de exchange).
 - Os hooks de `.claude/settings.json` valem também durante a construção: comandos Bash que
   citam diretórios protegidos são bloqueados fora de `python -m agencia`; use as ferramentas
   Write/Edit para gravar código que precise citá-los.

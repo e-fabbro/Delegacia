@@ -79,7 +79,8 @@ def test_matrizes(caso_completo):
                  "Cruzamentos", "LinhaTempo_Banco", "RIF_Comunicacoes", "RIF_Envolvidos", "RIF_Sobreposicao", "RIF_Consolidado", "Vinculos",
                  "Centrais", "LinhaTempo_Integrada", "Marcos", "Achados", "Diligencias"):
         assert r["planilhas"].get(nome), nome
-    assert r["omitidas"] == []
+    assert set(r["omitidas"]) == {"Tel_IPs", "Tel_Sessoes", "Tel_Vinculados", "Tel_ERB_Coincidencias", "PJ", "PJ_QSA", "PJ_x_Bancario",
+                                  "Cripto_Fluxos", "Cripto_Enderecos", "Cripto_Ligacoes_Fiat"}          # fontes da F6 ausentes neste caso
     assert r["planilhas"]["Lancamentos"] == 32 and r["planilhas"]["RIF_Comunicacoes"] == 12 and r["planilhas"]["Achados"] == 2
     wb = openpyxl.load_workbook(caso_completo / "04_produtos" / "matrizes.xlsx")
     ws = wb["Lancamentos"]

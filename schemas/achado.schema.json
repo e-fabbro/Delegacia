@@ -34,7 +34,7 @@
         "required": ["doc_id", "localizador"],
         "properties": {
           "doc_id": { "type": "string", "pattern": "^DOC-\\d{3,}$" },
-          "localizador": { "type": "string", "pattern": "^(p\\d+|l\\d+(-\\d+)?|tx#\\d+|com#\\d+|ccs#\\d+|ev#\\d+|agg#[a-z0-9_]+)$" }
+          "localizador": { "type": "string", "pattern": "^(p\\d+|l\\d+(-\\d+)?|tx#\\d+|com#\\d+|ccs#\\d+|ev#\\d+|qsa#\\d+|mov#\\d+|agg#[a-z0-9_]+)$" }
         }
       }
     },

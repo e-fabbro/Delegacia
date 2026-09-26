@@ -5,7 +5,7 @@ Erros de uso saem em JSON no stderr com código 1.
 """
 import argparse
 
-from agencia import achados, agregados, banco, caso, cofre, grafo, handoff, ingestao, integracao, layouts, matrizes, render, rif, saida
+from agencia import achados, agregados, banco, caso, cofre, cripto, grafo, handoff, ingestao, integracao, layouts, matrizes, render, rif, saida, soc, tel
 
 
 def _md(p: argparse.ArgumentParser) -> None:
@@ -253,6 +253,74 @@ def construir_parser() -> argparse.ArgumentParser:
     p.add_argument("agente", nargs="?")
     _md(p)
     p.set_defaults(fn=lambda a: achados.diligencias(a.codinome, a.agente))
+
+    # ---- tel (F6) ----
+    p_tel = grupos.add_parser("tel", help="dados telemáticos, ERB e bilhetagem")
+    sub = p_tel.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("importar", help="importa eventos (fuso: --fuso > coluna > nome da coluna > presunção por tipo)")
+    p.add_argument("codinome"); p.add_argument("doc_id")
+    p.add_argument("--fuso", help="ex.: UTC, America/Sao_Paulo, -03:00")
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.importar(a.codinome, a.doc_id, fuso=a.fuso))
+    p = sub.add_parser("normalizar", help="fuso de cada fonte (e reimporta --doc no --fuso dado)")
+    p.add_argument("codinome"); p.add_argument("--doc", metavar="DOC-ID"); p.add_argument("--fuso")
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.normalizar(a.codinome, doc=a.doc, fuso=a.fuso))
+    p = sub.add_parser("ips", help="IPs por identificador, portas, CGNAT sem porta, IPs compartilhados")
+    p.add_argument("codinome"); p.add_argument("--identificador"); p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.ips(a.codinome, identificador=a.identificador, doc=a.doc))
+    p = sub.add_parser("sessoes", help="sessões por identificador, dispositivos, identificadores vinculados, coincidências de ERB")
+    p.add_argument("codinome"); p.add_argument("--identificador"); p.add_argument("--doc", metavar="DOC-ID")
+    p.add_argument("--intervalo-min", dest="intervalo_min", type=int); p.add_argument("--tolerancia-erb-min", dest="tolerancia_erb_min", type=int, default=60)
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.sessoes(a.codinome, identificador=a.identificador, doc=a.doc, intervalo_min=a.intervalo_min, tolerancia_erb_min=a.tolerancia_erb_min))
+    p = sub.add_parser("janela", help="quem estava conectado e onde, entre --inicio e --fim")
+    p.add_argument("codinome"); p.add_argument("--inicio", required=True, metavar="'AAAA-MM-DD HH:MM:SS'"); p.add_argument("--fim", required=True)
+    p.add_argument("--fuso-entrada", dest="fuso_entrada", default="UTC", help="fuso em que --inicio/--fim foram dados (padrão UTC)")
+    p.add_argument("--identificador"); p.add_argument("--tolerancia-erb-min", dest="tolerancia_erb_min", type=int, default=60)
+    _md(p)
+    p.set_defaults(fn=lambda a: tel.janela(a.codinome, a.inicio, a.fim, fuso_entrada=a.fuso_entrada, identificador=a.identificador, tolerancia_erb_min=a.tolerancia_erb_min))
+
+    # ---- soc (F6) ----
+    p_soc = grupos.add_parser("soc", help="dados societários")
+    sub = p_soc.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("importar", help="importa PJ e QSA (layout societario.yaml)")
+    p.add_argument("codinome"); p.add_argument("doc_id"); p.add_argument("--layout")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.importar(a.codinome, a.doc_id, layout=a.layout))
+    p = sub.add_parser("qsa", help="por PJ: abertura, situação, CNAE, capital, sócios/administradores com datas")
+    p.add_argument("codinome"); p.add_argument("--pj", metavar="PJ-####")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.qsa(a.codinome, pj=a.pj))
+    p = sub.add_parser("compartilhados", help="sócios, endereços e contatos compartilhados entre PJ")
+    p.add_argument("codinome")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.compartilhados(a.codinome))
+    p = sub.add_parser("cruzar-bancario", help="porte declarado × movimentação das contas da PJ")
+    p.add_argument("codinome")
+    _md(p)
+    p.set_defaults(fn=lambda a: soc.cruzar_bancario(a.codinome))
+
+    # ---- cripto (F6) ----
+    p_cr = grupos.add_parser("cripto", help="criptoativos e exchanges")
+    sub = p_cr.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("importar", help="importa movimentações de exchange (layout cripto.yaml)")
+    p.add_argument("codinome"); p.add_argument("doc_id"); p.add_argument("--layout")
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.importar(a.codinome, a.doc_id, layout=a.layout))
+    p = sub.add_parser("fluxos", help="por conta na exchange: fiat in/out, compras/vendas, cripto in/out por ativo")
+    p.add_argument("codinome"); p.add_argument("--cliente", metavar="PF-####|PJ-####"); p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.fluxos(a.codinome, cliente=a.cliente, doc=a.doc))
+    p = sub.add_parser("enderecos", help="endereços externos: recorrência, compartilhamento, volume por ativo")
+    p.add_argument("codinome"); p.add_argument("--doc", metavar="DOC-ID")
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.enderecos(a.codinome, doc=a.doc))
+    p = sub.add_parser("exchanges", help="exchanges, contas KYC e ligação dos depósitos fiat com as contas bancárias do caso")
+    p.add_argument("codinome"); p.add_argument("--doc", metavar="DOC-ID"); p.add_argument("--tolerancia-dias", dest="tolerancia_dias", type=int, default=2)
+    _md(p)
+    p.set_defaults(fn=lambda a: cripto.exchanges(a.codinome, doc=a.doc, tolerancia_dias=a.tolerancia_dias))
 
     # ---- saídas (F5) ----
     p = grupos.add_parser("matrizes", help="consolida tabelas do caso e das análises em 04_produtos/matrizes.xlsx (pseudonimizado)")

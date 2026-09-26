@@ -19,7 +19,7 @@ from agencia import agregados, caso, db, util
 from agencia.cofre import RE_TOKEN
 
 SCHEMA = Path(__file__).resolve().parents[2] / "schemas" / "achado.schema.json"
-RE_PONTEIRO = re.compile(r"\[F:(DOC-\d{3,}):(p\d+|l\d+(?:-\d+)?|tx#\d+|com#\d+|ccs#\d+|ev#\d+|agg#[a-z0-9_]+)\]")
+RE_PONTEIRO = re.compile(r"\[F:(DOC-\d{3,}):(p\d+|l\d+(?:-\d+)?|tx#\d+|com#\d+|ccs#\d+|ev#\d+|qsa#\d+|mov#\d+|agg#[a-z0-9_]+)\]")
 RE_PAGINA = re.compile(r"^<!-- p(\d+) -->\s*$")
 RE_ROTULO = re.compile(r"\b(FATO|INFER[EÊ]NCIA|HIP[OÓ]TESE|LIMITA[CÇ][AÃ]O)\b")
 RE_NUMERO = re.compile(r"R\$\s*[\d.]+,\d{2}|\b\d{1,3}(?:\.\d{3})+,\d{2}\b|\b\d+,\d{2}\b|\b\d{2}/\d{2}/\d{4}\b|\b\d{4}-\d{2}-\d{2}\b")
@@ -176,12 +176,24 @@ class Resolvedor:
             return True, {"tipo": "ccs", "datas": {l["inicio"], l["fim"]} - {None}, "entidades": {l["pessoa"], l["conta"]} - {None},
                           "texto": f"{l['tipo']} {l['banco']} {l['inicio']} {l['fim']}"}
         if loc.startswith("ev#"):
-            if "eventos_telematicos" not in self.tabelas:
-                return False, {"erro": f"{doc_id}:{loc}: eventos telemáticos ainda não importados (F6)"}
             l = self.con.execute("select * from eventos_telematicos where doc_id=? and ev_id=?", (doc_id, int(loc[3:]))).fetchone()
             if not l:
-                return False, {"erro": f"{doc_id}:{loc} não existe em eventos_telematicos"}
-            return True, {"tipo": "evento", "texto": json.dumps(dict(l), ensure_ascii=False, default=str)}
+                return False, {"erro": f"{doc_id}:{loc} não existe em eventos_telematicos (rode `tel importar`?)"}
+            ents = {l["identificador"], l["contraparte"]} | set(json.loads(l["vinculados"]))
+            return True, {"tipo": "evento", "texto": json.dumps(dict(l), ensure_ascii=False, default=str), "datas": {(l["ts_utc"] or "")[:10]} - {""},
+                          "entidades": {e for e in ents if e and re.fullmatch(r"(PF|PJ|CT|TEL|EML|PIX|END)-\d{4}", e)}, "valores": {l["porta"]} - {None}}
+        if loc.startswith("qsa#"):
+            l = self.con.execute("select q.*, p.capital_centavos, p.abertura from pj_qsa q left join pj p on p.pj=q.pj where q.doc_id=? and q.linha=?", (doc_id, int(loc[4:]))).fetchone()
+            if not l:
+                return False, {"erro": f"{doc_id}:{loc} não existe em pj_qsa (rode `soc importar`?)"}
+            return True, {"tipo": "qsa", "entidades": {l["pj"], l["socio"]} - {None}, "datas": {l["entrada"], l["saida"], l["abertura"]} - {None},
+                          "valores": {l["capital_centavos"]} - {None}, "texto": f"{l['qualificacao']} {l['entrada']} {l['saida']}"}
+        if loc.startswith("mov#"):
+            l = self.con.execute("select * from cripto_movs where doc_id=? and mov_id=?", (doc_id, int(loc[4:]))).fetchone()
+            if not l:
+                return False, {"erro": f"{doc_id}:{loc} não existe em cripto_movs (rode `cripto importar`?)"}
+            return True, {"tipo": "cripto", "entidades": {l["cliente"], l["contraparte_conta"]} - {None}, "datas": {(l["ts_utc"] or "")[:10]} - {""},
+                          "valores": {l["valor_centavos"]} - {None}, "texto": f"{l['tipo']} {l['ativo']} {l['quantidade']} {l['endereco']} {l['txid']}"}
         if loc.startswith("agg#"):
             nome = loc[4:]
             reg = self.con.execute("select docs from agregados where nome=?", (nome,)).fetchone()

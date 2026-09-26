@@ -6,7 +6,7 @@ Cada fase acrescenta o seu DDL em `DDL_CASO` / `DDL_COFRE`; `inicializar` é ide
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 DDL_META = """
 create table if not exists meta (
@@ -157,7 +157,88 @@ create table if not exists vinculos (
 );
 """
 
-DDL_CASO: list[str] = [DDL_META, DDL_DOCUMENTOS, DDL_RIF, DDL_BANCO, DDL_INTEGRACAO]
+# F6
+DDL_F6 = """
+create table if not exists tel_fontes (
+    doc_id      text primary key,
+    tipo        text not null,
+    fuso        text not null,
+    origem_fuso text not null,
+    eventos     integer not null,
+    importado_em text not null
+);
+create table if not exists eventos_telematicos (
+    doc_id        text not null,
+    ev_id         integer not null,
+    identificador text,
+    tipo          text,
+    ts_original   text,
+    fuso_origem   text,
+    ts_utc        text,
+    ip            text,
+    porta         integer,
+    dispositivo   text,
+    erb           text,
+    lac           text,
+    cell_id       text,
+    latitude      real,
+    longitude     real,
+    municipio     text,
+    contraparte   text,
+    duracao       integer,
+    vinculados    text not null default '[]',
+    descricao     text,
+    tabela        text,
+    linha         integer,
+    primary key (doc_id, ev_id)
+);
+create index if not exists idx_ev_ident_ts on eventos_telematicos (identificador, ts_utc);
+create table if not exists pj (
+    pj              text primary key,
+    doc_id          text,
+    abertura        text,
+    situacao        text,
+    cnae            text,
+    capital_centavos integer,
+    uf              text,
+    municipio       text,
+    endereco        text,
+    contatos        text not null default '[]'
+);
+create table if not exists pj_qsa (
+    doc_id       text not null,
+    linha        integer not null,
+    pj           text not null,
+    socio        text,
+    qualificacao text,
+    entrada      text,
+    saida        text,
+    primary key (doc_id, linha)
+);
+create table if not exists cripto_movs (
+    doc_id         text not null,
+    mov_id         integer not null,
+    exchange       text,
+    cliente        text,
+    conta_exchange text,
+    ts_utc         text,
+    tipo           text,
+    ativo          text,
+    rede           text,
+    quantidade     text,
+    valor_centavos integer,
+    endereco       text,
+    txid           text,
+    contraparte_banco text,
+    contraparte_conta text,
+    descricao      text,
+    tabela         text,
+    linha          integer,
+    primary key (doc_id, mov_id)
+);
+"""
+
+DDL_CASO: list[str] = [DDL_META, DDL_DOCUMENTOS, DDL_RIF, DDL_BANCO, DDL_INTEGRACAO, DDL_F6]
 DDL_COFRE: list[str] = [DDL_META, DDL_IDENTIDADES]
 
 

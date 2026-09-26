@@ -23,7 +23,7 @@ RE_LISTA_NUM = re.compile(r"^\s*\d+[.)]\s+(.*)$")
 RE_CITACAO = re.compile(r"^\s*>\s?(.*)$")
 RE_SEPARADOR = re.compile(r"^\|?\s*:?-{2,}")
 RE_INLINE = re.compile(r"(\*\*.+?\*\*|\*.+?\*|`.+?`)")
-RE_PONTEIRO = re.compile(r"\[F:(DOC-\d{3,}):(p\d+|l\d+(?:-\d+)?|tx#\d+|com#\d+|ccs#\d+|ev#\d+|agg#[a-z0-9_]+)\]")
+RE_PONTEIRO = re.compile(r"\[F:(DOC-\d{3,}):(p\d+|l\d+(?:-\d+)?|tx#\d+|com#\d+|ccs#\d+|ev#\d+|qsa#\d+|mov#\d+|agg#[a-z0-9_]+)\]")
 FORMATOS_TEXTO = (".md", ".html", ".htm", ".json", ".txt", ".csv")
 
 
@@ -41,6 +41,10 @@ def _ponteiro_legivel(m: re.Match) -> str:
         desc = f"registro CCS {loc[4:]}"
     elif loc.startswith("ev#"):
         desc = f"evento {loc[3:]}"
+    elif loc.startswith("qsa#"):
+        desc = f"registro QSA {loc[4:]}"
+    elif loc.startswith("mov#"):
+        desc = f"movimentação cripto {loc[4:]}"
     else:
         desc = f"análise {loc[4:]}"
     return f"[{doc}, {desc}]"

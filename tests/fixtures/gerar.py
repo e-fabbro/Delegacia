@@ -304,6 +304,91 @@ def gerar_ccs3_xlsx() -> None:
     wb.save(AQUI / "ccs_3contas.xlsx")
 
 
+# ---------- F6: telemático (provedor em UTC), ERB (operadora em horário local), societário, cripto ----------
+
+ENDERECO_X = "SIA TRECHO 3 LOTE 100 SALA 2, BRASILIA DF"
+CARTEIRA_1 = "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE"
+CARTEIRA_2 = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+FATO_UTC = "2026-03-10 14:32:00"   # horário do fato investigado (UTC) = 11:32 em Brasília
+
+
+def gerar_telematica_csv() -> None:
+    cab = "ACCOUNT_ID;EMAIL;EVENTO;DATA_HORA_UTC;IP;PORTA;USER_AGENT;EMAIL_RECUPERACAO;TELEFONE_RECUPERACAO"
+    a1, a2 = "acct-7781", "acct-9932"
+    ua1 = "Mozilla/5.0 (Android 14, Mobile) Chrome/122"
+    ua2 = "Mozilla/5.0 (Windows NT 10.0) Firefox/123"
+    linhas = [
+        f"{a1};{PF1['email']};LOGIN;2026-03-09 22:10:05;177.10.20.30;41234;{ua1};{PF2['email']};{PF1['tel']}",
+        f"{a1};{PF1['email']};ACESSO;2026-03-09 22:25:40;177.10.20.30;41234;{ua1};;",
+        f"{a1};{PF1['email']};LOGOUT;2026-03-09 22:41:00;177.10.20.30;41234;{ua1};;",
+        f"{a1};{PF1['email']};LOGIN;2026-03-10 14:20:11;100.72.5.9;;{ua1};;",
+        f"{a1};{PF1['email']};ACESSO;2026-03-10 14:31:50;100.72.5.9;;{ua1};;",
+        f"{a1};{PF1['email']};ACESSO;2026-03-10 14:33:02;100.72.5.9;;{ua1};;",
+        f"{a1};{PF1['email']};LOGOUT;2026-03-10 15:05:00;100.72.5.9;;{ua1};;",
+        f"{a1};{PF1['email']};LOGIN;2026-03-12 01:00:00;177.10.20.30;50001;{ua1};;",
+        f"{a2};{PF2['email']};LOGIN;2026-03-10 14:00:00;189.40.60.80;61000;{ua2};;{PF2['tel']}",
+        f"{a2};{PF2['email']};ACESSO;2026-03-10 14:30:00;189.40.60.80;61000;{ua2};;",
+        f"{a2};{PF2['email']};TROCA_SENHA;2026-03-10 14:35:00;189.40.60.80;61000;{ua2};{PF1['email']};",
+        f"{a2};{PF2['email']};LOGOUT;2026-03-10 16:00:00;189.40.60.80;61000;{ua2};;",
+        f"{a2};{PF2['email']};LOGIN;2026-04-01 09:00:00;177.10.20.30;41234;{ua2};;",
+        f"{a2};{PF2['email']};LOGOUT;2026-04-01 09:20:00;177.10.20.30;41234;{ua2};;",
+    ]
+    (AQUI / "telematica_sintetica.csv").write_text("\n".join([cab, *linhas]) + "\n", encoding="utf-8")
+
+
+def gerar_erb_csv() -> None:
+    cab = "NUMERO_A;DATA_HORA;TIPO_CHAMADA;NUMERO_B;DURACAO;ERB;LAC;CELL_ID;AZIMUTE;LATITUDE;LONGITUDE;MUNICIPIO"
+    t1, t2, t3 = PF1["tel"], PF2["tel"], "(61) 99111-2233"
+    linhas = [
+        f"{t1};10/03/2026 11:05:00;VOZ_ORIG;{t2};120;ERB-101;1001;5501;120;-15.7801;-47.9292;BRASILIA",
+        f"{t1};10/03/2026 11:30:12;DADOS;;0;ERB-101;1001;5501;120;-15.7801;-47.9292;BRASILIA",
+        f"{t2};10/03/2026 11:31:40;DADOS;;0;ERB-101;1001;5502;240;-15.7801;-47.9292;BRASILIA",
+        f"{t2};10/03/2026 11:05:00;VOZ_TERM;{t1};120;ERB-205;1002;7701;0;-15.8330;-48.0500;TAGUATINGA",
+        f"{t1};11/03/2026 08:00:00;SMS;{t3};0;ERB-330;1003;9901;60;-15.6200;-47.6500;PLANALTINA",
+        f"{t2};11/03/2026 20:15:00;VOZ_ORIG;{t3};45;ERB-205;1002;7701;0;-15.8330;-48.0500;TAGUATINGA",
+    ]
+    (AQUI / "erb_sintetica.csv").write_text("\n".join([cab, *linhas]) + "\n", encoding="utf-8")
+
+
+def gerar_societario_xlsx() -> None:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "QSA"
+    ws.append(["CNPJ", "RAZAO_SOCIAL", "ABERTURA", "SITUACAO", "CNAE_PRINCIPAL", "CAPITAL_SOCIAL", "UF", "MUNICIPIO", "ENDERECO",
+               "SOCIO_CPF_CNPJ", "SOCIO_NOME", "QUALIFICACAO", "ENTRADA", "SAIDA"])
+    pj1 = [PJ1["cnpj"], PJ1["nome"], "15/08/2023", "ATIVA", "4530-7/03", "10000,00", "DF", "BRASILIA", ENDERECO_X]
+    pj2 = [PJ2["cnpj"], PJ2["nome"], "10/12/2025", "ATIVA", "7490-1/04", "5000,00", "DF", "BRASILIA", ENDERECO_X]
+    pj3 = [PJ3["cnpj"], PJ3["nome"], "02/05/2019", "ATIVA", "6619-3/99", "1000000,00", "SP", "SAO PAULO", "AV PAULISTA 1000 CJ 51, SAO PAULO SP"]
+    ws.append(pj1 + [PF1["cpf"], PF1["nome"], "SOCIO-ADMINISTRADOR", "15/08/2023", ""])
+    ws.append(pj1 + [PF3["cpf"], PF3["nome"], "SOCIO", "15/08/2023", "01/02/2026"])
+    ws.append(pj2 + [PF3["cpf"], PF3["nome"], "SOCIO-ADMINISTRADOR", "10/12/2025", ""])
+    ws.append(pj2 + [PF4["cpf"], PF4["nome"], "SOCIO", "10/12/2025", ""])
+    ws.append(pj3 + [PF4["cpf"], PF4["nome"], "SOCIO", "02/05/2019", ""])
+    wb.save(AQUI / "societario_sintetico.xlsx")
+
+
+def gerar_cripto_csv() -> None:
+    cab = ("EXCHANGE;CPF_CLIENTE;NOME_CLIENTE;DATA_HORA_UTC;TIPO;ATIVO;REDE;QUANTIDADE;VALOR_BRL;ENDERECO_CARTEIRA;TXID;"
+           "BANCO_CONTRAPARTE;AGENCIA_CONTRAPARTE;CONTA_CONTRAPARTE")
+    ex = PJ3["nome"]
+    b = CONTAS["B"]
+    c2 = f"{PF2['cpf']};{PF2['nome']}"
+    c3 = f"{PF3['cpf']};{PF3['nome']}"
+    linhas = [
+        f"{ex};{c2};2026-03-11 13:05:00;DEPOSITO_FIAT;BRL;;15000.00;15000,00;;;{b['banco']};{b['agencia']};{b['conta']}",
+        f"{ex};{c2};2026-03-11 13:20:00;COMPRA;USDT;;2950.00000000;14985,00;;;;;",
+        f"{ex};{c2};2026-03-11 14:00:00;SAQUE_CRIPTO;USDT;TRON;2940.00000000;14934,00;{CARTEIRA_1};a1b2c3d4e5f60001;;;",
+        f"{ex};{c2};2026-05-06 10:00:00;DEPOSITO_FIAT;BRL;;4300.00;4300,00;;;{b['banco']};{b['agencia']};{b['conta']}",
+        f"{ex};{c2};2026-05-06 10:30:00;COMPRA;BTC;;0.00700000;4290,00;;;;;",
+        f"{ex};{c2};2026-05-06 11:00:00;SAQUE_CRIPTO;BTC;BITCOIN;0.00690000;4229,00;{CARTEIRA_2};a1b2c3d4e5f60002;;;",
+        f"{ex};{c3};2026-04-02 09:00:00;DEPOSITO_CRIPTO;USDT;TRON;1000.00000000;5100,00;{CARTEIRA_1};a1b2c3d4e5f60003;;;",
+        f"{ex};{c3};2026-04-02 09:30:00;VENDA;USDT;;1000.00000000;5090,00;;;;;",
+        f"{ex};{c3};2026-04-02 10:00:00;SAQUE_FIAT;BRL;;5050.00;5050,00;;;{CONTAS['PF3']['banco']};{CONTAS['PF3']['agencia']};{CONTAS['PF3']['conta']}",
+        f"{ex};{c3};2026-04-20 10:00:00;SAQUE_CRIPTO;USDT;TRON;500.00000000;2600,00;{CARTEIRA_1};a1b2c3d4e5f60004;;;",
+    ]
+    (AQUI / "cripto_sintetico.csv").write_text("\n".join([cab, *linhas]) + "\n", encoding="utf-8")
+
+
 if __name__ == "__main__":
     gerar_rif_pdf()
     gerar_simba_csv()
@@ -313,4 +398,8 @@ if __name__ == "__main__":
     gerar_rif12_pdf()
     gerar_simba3_csv()
     gerar_ccs3_xlsx()
+    gerar_telematica_csv()
+    gerar_erb_csv()
+    gerar_societario_xlsx()
+    gerar_cripto_csv()
     print("fixtures gerados em", AQUI)

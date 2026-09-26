@@ -9,7 +9,7 @@ import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from agencia import achados, banco, caso, db, grafo, integracao, rif, util
+from agencia import achados, banco, caso, cripto, db, grafo, integracao, rif, soc, tel, util
 
 CAB_FILL = PatternFill("solid", fgColor="DDDDDD")
 LARGURA_MAX = 60
@@ -120,6 +120,24 @@ def matrizes(codinome: str) -> dict:
     r = _tentar(rif.sobreposicao, codinome)
     bloco("RIF_Sobreposicao", (r["grupos"] if r else []))
     bloco("RIF_Consolidado", (r["por_titular"] if r else []))
+
+    r = _tentar(tel.ips, codinome)
+    bloco("Tel_IPs", [{k: v for k, v in x.items() if k != "ponteiros"} | {"ponteiros": x["ponteiros"][:5]} for x in r["lista"]] if r else [])
+    r = _tentar(tel.sessoes, codinome)
+    bloco("Tel_Sessoes", r["lista"] if r else [])
+    bloco("Tel_Vinculados", [{"identificador": i["identificador"], **v} for i in r["identificadores"] for v in i["vinculados"]] if r else [])
+    bloco("Tel_ERB_Coincidencias", r["coincidencias_erb"] if r else [])
+    r = _tentar(soc.qsa, codinome)
+    bloco("PJ", [{k: v for k, v in p.items() if k not in ("socios", "trocas_societarias")} for p in r["lista"]] if r else [])
+    bloco("PJ_QSA", [{"pj": p["pj"], **s} for p in r["lista"] for s in p["socios"]] if r else [])
+    r = _tentar(soc.cruzar_bancario, codinome)
+    bloco("PJ_x_Bancario", r["pjs"] if r else [])
+    r = _tentar(cripto.fluxos, codinome)
+    bloco("Cripto_Fluxos", [{k: v for k, v in c.items() if k != "ativos"} | {"ativos": c["ativos"]} for c in r["contas"]] if r else [])
+    r = _tentar(cripto.enderecos, codinome)
+    bloco("Cripto_Enderecos", r["lista"] if r else [])
+    r = _tentar(cripto.exchanges, codinome)
+    bloco("Cripto_Ligacoes_Fiat", r["ligacoes_fiat"] if r else [])
 
     con = db.abrir_caso(d)
     vinc = [dict(l) for l in con.execute("select * from vinculos order by tipo, origem, destino")]

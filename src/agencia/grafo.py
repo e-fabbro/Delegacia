@@ -17,8 +17,9 @@ import networkx as nx
 
 from agencia import caso, db, util
 
-TIPOS_ARESTA = ("transferencia", "rif", "ccs", "achado")
+TIPOS_ARESTA = ("transferencia", "rif", "ccs", "telematico", "societario", "cripto", "achado")
 MAX_FONTES = 12
+RE_TOKEN_NO = __import__("re").compile(r"(PF|PJ|CT|TEL|EML|PIX|END)-\d{4}")
 
 
 def _titulares(con) -> dict[str, str | None]:
@@ -80,6 +81,31 @@ def construir(codinome: str, sem_achados: bool = False) -> dict:
                 acc.add(c["titular"], e["pseudonimo"], "rif", ptr, c["valor_centavos"] or 0, c["periodo_inicio"] or c["data_comunicacao"], e["papel"])
     for r in con.execute("select * from relacionamentos_ccs"):
         acc.add(r["pessoa"], r["conta"], "ccs", util.ponteiro(r["doc_id"], f"ccs#{r['linha']}"), 0, r["inicio"], (r["tipo"] or "").lower())
+    for e in con.execute("select * from eventos_telematicos"):
+        ident = e["identificador"] if e["identificador"] and RE_TOKEN_NO.fullmatch(e["identificador"]) else None
+        ptr = util.ponteiro(e["doc_id"], f"ev#{e['ev_id']}")
+        data = (e["ts_utc"] or "")[:10] or None
+        for v in json.loads(e["vinculados"]):
+            acc.add(ident, v, "telematico", ptr, 0, data, "vinculado")
+        if e["contraparte"] and RE_TOKEN_NO.fullmatch(e["contraparte"]):
+            acc.add(ident, e["contraparte"], "telematico", ptr, 0, data, (e["tipo"] or "contato").lower())
+    for q in con.execute("select * from pj_qsa"):
+        acc.add(q["socio"], q["pj"], "societario", util.ponteiro(q["doc_id"], f"qsa#{q['linha']}"), 0, q["entrada"], (q["qualificacao"] or "socio").lower())
+    for p in con.execute("select pj, endereco, contatos, doc_id from pj"):
+        if p["endereco"] and RE_TOKEN_NO.fullmatch(p["endereco"]):
+            acc.add(p["pj"], p["endereco"], "societario", f"pj:{p['pj']}", 0, None, "endereco")
+        for c in json.loads(p["contatos"]):
+            acc.add(p["pj"], c, "societario", f"pj:{p['pj']}", 0, None, "contato")
+    for m in con.execute("select * from cripto_movs"):
+        ptr = util.ponteiro(m["doc_id"], f"mov#{m['mov_id']}")
+        data = (m["ts_utc"] or "")[:10] or None
+        ex = m["exchange"] if m["exchange"] and RE_TOKEN_NO.fullmatch(m["exchange"]) else None
+        if m["tipo"] == "deposito_fiat":
+            acc.add(tit.get(m["contraparte_conta"]) or m["contraparte_conta"], m["cliente"], "cripto", ptr, m["valor_centavos"] or 0, data, "deposito_fiat")
+        elif m["tipo"] == "saque_fiat":
+            acc.add(m["cliente"], tit.get(m["contraparte_conta"]) or m["contraparte_conta"], "cripto", ptr, m["valor_centavos"] or 0, data, "saque_fiat")
+        if ex:
+            acc.add(m["cliente"], ex, "cripto", ptr, 0, data, "cliente")
     n_achados = 0
     if not sem_achados:
         for agente, a in _achados(d):
@@ -190,7 +216,7 @@ def centrais(codinome: str, top: int = 10, tipo: str | None = None) -> dict:
 # ---------- exportar ----------
 
 CORES = {"PF": "#1f77b4", "PJ": "#d62728", "CT": "#2ca02c", "TEL": "#9467bd", "EML": "#8c564b", "PIX": "#e377c2", "END": "#7f7f7f"}
-CORES_ARESTA = {"transferencia": "#2ca02c", "rif": "#d62728", "ccs": "#1f77b4", "achado": "#ff7f0e"}
+CORES_ARESTA = {"transferencia": "#2ca02c", "rif": "#d62728", "ccs": "#1f77b4", "telematico": "#9467bd", "societario": "#8c564b", "cripto": "#e377c2", "achado": "#ff7f0e"}
 
 
 def _posicoes(g: nx.Graph) -> dict[str, tuple[float, float]]:

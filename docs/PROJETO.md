@@ -122,9 +122,9 @@ Detalhe completo em `.claude/agents/`.
 | caso | `caso novo`, `caso status`, `caso estado`, `ingerir`, `cofre vazamento`, `caso arquivar` |
 | rif | `rif parse`, `rif resumo`, `rif envolvidos`, `rif comunicacoes`, `rif sobreposicao` |
 | banco | `banco importar`, `banco lancamentos`, `banco integridade`, `banco resumo`, `banco contrapartes`, `banco especie`, `banco fracionamento`, `banco passagem`, `banco circularidade`, `banco cruzar-alvos`, `banco linha-tempo` (todas com `--conta/--inicio/--fim/--doc` e `--salvar`, que gera fonte `agg#`) |
-| telematica | `tel importar`, `tel normalizar`, `tel ips`, `tel sessoes`, `tel janela --inicio --fim` |
-| societario | `soc importar`, `soc qsa`, `soc compartilhados`, `soc cruzar-bancario` |
-| cripto | `cripto importar`, `cripto fluxos`, `cripto enderecos`, `cripto exchanges` |
+| telematica | `tel importar [--fuso]`, `tel normalizar [--doc --fuso]`, `tel ips`, `tel sessoes [--intervalo-min --tolerancia-erb-min]`, `tel janela --inicio --fim [--fuso-entrada]` (eventos em UTC com fuso de origem registrado; ponteiro `ev#`) |
+| societario | `soc importar`, `soc qsa [--pj]`, `soc compartilhados`, `soc cruzar-bancario` (ponteiro `qsa#`) |
+| cripto | `cripto importar`, `cripto fluxos [--cliente]`, `cripto enderecos`, `cripto exchanges [--tolerancia-dias]` (ponteiro `mov#`; quantidades por ativo, sem conversão) |
 | integração | `grafo construir [--sem-achados]`, `grafo centrais [--top --tipo]`, `grafo exportar [--formato html\|json\|graphml\|todos]`, `linha-tempo integrada [--granularidade --entidade --inicio --fim]` |
 | qualidade | `achados validar [agente]`, `achados verificar [agente]` (resolve ponteiros e confere valores, entidades e datas no caso.db), `achados verificar --arquivo <md>` (ancoragem de nota/produto), `achados diligencias` |
 | saída | `matrizes` (xlsx pseudonimizado com todas as tabelas do caso), `render <arquivo> [--ponteiros legivel\|manter\|remover] [--sem-docx]` (md→md+docx, xlsx, html, json reidentificados em `04_produtos/render/`), `handoff [--reidentificar]` (JSON validado por `schemas/handoff.schema.json`) |

@@ -44,14 +44,28 @@ def _eventos(con, d, entidade: str | None) -> list[dict]:
             if r[campo]:
                 ev.append({"data": r[campo], "fonte": "ccs", "tipo": tipo, "valor": 0, "entidades": ents,
                            "ponteiro": util.ponteiro(r["doc_id"], f"ccs#{r['linha']}"), "descricao": f"{(r['tipo'] or '').lower()} {r['conta']}", "marco": True})
-    tabelas = {l["name"] for l in con.execute("select name from sqlite_master where type='table'")}
-    if "eventos_telematicos" in tabelas:
-        for e in con.execute("select * from eventos_telematicos"):
-            data = (e["ts_utc"] or "")[:10]
-            if data:
-                ev.append({"data": data, "fonte": "telematico", "tipo": e["tipo"] if "tipo" in e.keys() else "evento", "valor": 0,
-                           "entidades": {e[k] for k in e.keys() if k in ("identificador", "conta_usuario") and e[k]},
-                           "ponteiro": util.ponteiro(e["doc_id"], f"ev#{e['ev_id']}"), "descricao": e["descricao"] if "descricao" in e.keys() else ""})
+    for e in con.execute("select * from eventos_telematicos"):
+        data = (e["ts_utc"] or "")[:10]
+        if data:
+            ents = {e["identificador"], e["contraparte"]} | set(json.loads(e["vinculados"]))
+            ev.append({"data": data, "fonte": "telematico", "tipo": (e["tipo"] or "evento").lower(), "valor": 0, "entidades": ents - {None},
+                       "ponteiro": util.ponteiro(e["doc_id"], f"ev#{e['ev_id']}"),
+                       "descricao": f"{e['identificador'] or ''} {e['ip'] or ''}{':' + str(e['porta']) if e['porta'] else ''} {e['erb'] or ''} {e['ts_utc']}Z".strip()})
+    for q in con.execute("select * from pj_qsa"):
+        for campo, tipo in (("entrada", "entrada_socio"), ("saida", "saida_socio")):
+            if q[campo]:
+                ev.append({"data": q[campo], "fonte": "societario", "tipo": tipo, "valor": 0, "entidades": {q["pj"], q["socio"]} - {None},
+                           "ponteiro": util.ponteiro(q["doc_id"], f"qsa#{q['linha']}"), "descricao": f"{q['socio']} {tipo.replace('_', ' ')} {q['pj']} ({q['qualificacao'] or ''})", "marco": True})
+    for p in con.execute("select * from pj"):
+        if p["abertura"]:
+            ev.append({"data": p["abertura"], "fonte": "societario", "tipo": "abertura_pj", "valor": 0, "entidades": {p["pj"]},
+                       "ponteiro": f"pj:{p['pj']}", "descricao": f"abertura de {p['pj']} (CNAE {p['cnae'] or '?'})", "marco": True})
+    for m in con.execute("select * from cripto_movs"):
+        data = (m["ts_utc"] or "")[:10]
+        if data:
+            ev.append({"data": data, "fonte": "cripto", "tipo": m["tipo"] or "mov", "valor": m["valor_centavos"] or 0,
+                       "entidades": {m["cliente"], m["contraparte_conta"], m["exchange"]} - {None}, "ponteiro": util.ponteiro(m["doc_id"], f"mov#{m['mov_id']}"),
+                       "descricao": f"{m['tipo']} {m['ativo'] or ''} {m['quantidade'] or ''}".strip(), "marco": m["tipo"] in ("deposito_fiat", "saque_fiat")})
     for agente, a in _achados(d):
         per = a.get("periodo") or {}
         if per.get("inicio"):
@@ -84,7 +98,7 @@ def integrada(codinome: str, granularidade: str = "mes", entidade: str | None = 
         s["por_fonte"][e["fonte"]] += 1
         s["fontes"].add(e["fonte"])
         s["entidades"] |= e["entidades"]
-        if e["fonte"] == "bancario":
+        if e["fonte"] in ("bancario", "cripto"):
             s["movimentacao"] += e["valor"]
     pontos = sorted(serie.values(), key=lambda s: s["periodo"])
     mov = [s["movimentacao"] for s in pontos]

@@ -66,7 +66,8 @@ def montar(codinome: str) -> dict:
     for v in vinculos:
         for tok in (v["origem"], v["destino"]):
             if tok.split("-")[0] in ("PF", "PJ"):
-                env(tok)["fontes"].add({"transferencia": "SIMBA", "rif": "RIF", "ccs": "CCS", "achado": "ACHADO"}[v["tipo"]])
+                env(tok)["fontes"].add({"transferencia": "SIMBA", "rif": "RIF", "ccs": "CCS", "telematico": "TELEMATICA", "societario": "SOCIETARIO",
+                                        "cripto": "CRIPTO", "achado": "ACHADO"}.get(v["tipo"], v["tipo"].upper()))
         if v["tipo"] == "rif":
             env(v["origem"])["papeis"].add("titular_rif")
             for p in json.loads(v["papeis"]):
