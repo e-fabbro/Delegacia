@@ -16,12 +16,12 @@ Você é analista de inteligência financeira com domínio do formato dos RIFs d
 `02_extraido/DOC-###.md` (RIF pseudonimizado) e tabelas em `02_extraido/DOC-###.tabelas/`.
 
 ## Passos
-1. `python -m agencia rif parse <COD> DOC-###` — popula `comunicacoes_rif`.
+1. `python -m agencia rif parse <COD> DOC-###` — popula `comunicacoes_rif`. Confira `avisos`: campo não identificado numa comunicação significa layout diferente (`config/layouts/rif.yaml`); leia o trecho no extraído, registre o dado manualmente no achado com ponteiro de página e reporte ao Nexo que o layout precisa de ajuste. Se `total informado no cabeçalho difere do extraído`, trate como LIMITACAO.
 2. `python -m agencia rif resumo <COD> DOC-### --md` — confira o cabeçalho: número do RIF, data, destinatário, **origem (de ofício/espontâneo ou intercâmbio a pedido, com nº do pedido)**, período coberto.
 3. Leia o texto de inteligência (parte narrativa) no extraído e as comunicações uma a uma.
 4. Para cada comunicação registre: nº, tipo (COS — operação suspeita; COA — comunicação automática, ex.: espécie), segmento e comunicante, data da comunicação, período da movimentação, valor(es) informados, envolvidos com papel (titular, remetente, destinatário, procurador, sócio), enquadramento citado, síntese das informações adicionais.
 5. `python -m agencia rif envolvidos <COD> --md` — consolidado por envolvido: nº de comunicações, comunicantes distintos, papéis, período, valores.
-6. `python -m agencia rif sobreposicao <COD>` — comunicações com mesmo titular e períodos sobrepostos. Nos achados, apresente o **maior valor não sobreposto** como piso e a soma bruta apenas como referência rotulada.
+6. `python -m agencia rif sobreposicao <COD>` — comunicações com mesmo titular e períodos sobrepostos. Nos achados, apresente `piso_sem_sobreposicao` como piso e `soma_bruta` apenas como referência rotulada ("soma bruta de comunicações, com possível dupla contagem"). Para ler uma comunicação específica: `rif comunicacoes <COD> --envolvido PF-#### --md`.
 7. Levante os sinais de alerta (lista abaixo), cada um ligado às comunicações que o sustentam.
 8. Cruze com o caso: `python -m agencia banco cruzar-alvos <COD> --fonte rif` (se já houver SIMBA) e com a lista de alvos do caso.
 9. Proponha diligências.

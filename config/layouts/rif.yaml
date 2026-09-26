@@ -1,0 +1,37 @@
+# Layout textual dos RIFs (COAF) -> modelo interno. Regex Python (IGNORECASE|MULTILINE) aplicadas ao
+# texto SEM acentos do extraído pseudonimizado. Cada campo aceita uma lista: usa a primeira que casar.
+# PROVISÓRIO: ajustar contra um RIF real tarjado antes do primeiro caso (formatos variam por versão do SEI-C).
+cabecalho:
+  numero: ['RIF\s*(?:n[ºo°.]?\s*)?([\d./-]*\d)', 'Relatorio\s*(?:n[ºo°.]?\s*)?([\d./-]*\d)']
+  data: ['\bData(?: do RIF| de emissao)?:\s*(\d{2}/\d{2}/\d{4})']
+  destinatario: ['Destinatario:\s*(.+?)(?=\s{2,}\S|\s+Origem:|$)']
+  origem: ['Origem:\s*(.+)']
+  pedido: ['(?:Oficio|Pedido|Solicitacao)\s*(?:n[ºo°.]?\s*)?([\w./-]*\d[\w./-]*)']
+  periodo: ['Periodo(?: coberto| analisado| da movimentacao)?:\s*(\d{2}/\d{2}/\d{4})\s*(?:a|ate|-)\s*(\d{2}/\d{2}/\d{4})']
+  total_comunicacoes: ['Total de comunicacoes:\s*(\d+)', '(\d+)\s+comunicac(?:ao|oes)']
+# Origem: padrões que definem tipo_origem (primeiro que casar).
+tipo_origem:
+  intercambio_a_pedido: ['a pedido', 'intercambio', 'solicita', 'requisi', 'oficio']
+  de_oficio: ['de oficio', 'espontane']
+comunicacao:
+  # início de um bloco de comunicação; grupo 1 = número
+  inicio: ['^\s*Comunicacao\s*(?:n[ºo°.]?\s*)?(\d+)\b']
+  tipo: ['\b(COS|COA)\b']
+  comunicante: ['Comunicante:\s*(.+?)(?=\s+Segmento:|\s{2,}\S|$)', 'Instituicao:\s*(.+?)(?=\s{2,}\S|$)']
+  segmento: ['Segmento:\s*(.+?)(?=\s{2,}\S|$)']
+  data_comunicacao: ['Data da comunicacao:\s*(\d{2}/\d{2}/\d{4})', 'Comunicada em:?\s*(\d{2}/\d{2}/\d{4})']
+  periodo: ['Periodo(?: da movimentacao)?:\s*(\d{2}/\d{2}/\d{4})\s*(?:a|ate|-)\s*(\d{2}/\d{2}/\d{4})',
+            'entre\s*(\d{2}/\d{2}/\d{4})\s*e\s*(\d{2}/\d{2}/\d{4})',
+            '\bem\s*(\d{2}/\d{2}/\d{4})()']
+  valor: ['Valor(?: total| da movimentacao)?:\s*R\$\s*([\d.]+,\d{2})', 'R\$\s*([\d.]+,\d{2})']
+  enquadramento: ['Enquadramento:\s*(.+)']
+  informacoes: ['Informacoes adicionais:\s*(.+)']
+  # papel de um envolvido = rótulo no início da linha em que o token aparece
+  papeis:
+    titular: ['^\s*Titular']
+    remetente: ['^\s*Remetente', '^\s*Origem dos recursos', '^\s*Pagador']
+    destinatario: ['^\s*Destinatario', '^\s*Beneficiario', '^\s*Favorecido', '^\s*Recebedor']
+    contraparte: ['^\s*Contraparte']
+    procurador: ['^\s*Procurador', '^\s*Representante']
+    socio: ['^\s*Socio', '^\s*Administrador']
+    comunicante: ['^\s*Tipo:.*Comunicante', '^\s*Comunicante']

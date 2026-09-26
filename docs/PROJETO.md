@@ -121,7 +121,7 @@ Detalhe completo em `.claude/agents/`.
 |---|---|
 | caso | `caso novo`, `caso status`, `caso estado`, `ingerir`, `cofre vazamento`, `caso arquivar` |
 | rif | `rif parse`, `rif resumo`, `rif envolvidos`, `rif comunicacoes`, `rif sobreposicao` |
-| banco | `banco importar`, `banco integridade`, `banco resumo`, `banco contrapartes`, `banco especie`, `banco fracionamento`, `banco passagem`, `banco circularidade`, `banco cruzar-alvos`, `banco linha-tempo` |
+| banco | `banco importar`, `banco lancamentos`, `banco integridade`, `banco resumo`, `banco contrapartes`, `banco especie`, `banco fracionamento`, `banco passagem`, `banco circularidade`, `banco cruzar-alvos`, `banco linha-tempo` (todas com `--conta/--inicio/--fim/--doc` e `--salvar`, que gera fonte `agg#`) |
 | telematica | `tel importar`, `tel normalizar`, `tel ips`, `tel sessoes`, `tel janela --inicio --fim` |
 | societario | `soc importar`, `soc qsa`, `soc compartilhados`, `soc cruzar-bancario` |
 | cripto | `cripto importar`, `cripto fluxos`, `cripto enderecos`, `cripto exchanges` |
@@ -129,7 +129,9 @@ Detalhe completo em `.claude/agents/`.
 | qualidade | `achados validar`, `achados verificar` (resolve ponteiros e confere números no caso.db) |
 | saída | `matrizes`, `render`, `handoff` |
 
-Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pseudonimizada.
+Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pseudonimizada. Layouts de fonte (colunas do SIMBA/CCS, padrões textuais do RIF) ficam em `config/layouts/*.yaml` e são ajustados sem tocar no código; `AGENCIA_LAYOUTS` aponta para um diretório alternativo.
+
+Convenções numéricas: valores em centavos inteiros internamente (saída em reais com 2 casas); datas ISO; ponteiro `tx#N` é a posição do lançamento no documento (1..n, ordem do arquivo); `com#N` é o número da comunicação no RIF. Consolidado de RIF por titular usa o **piso sem sobreposição** (maior valor de cada grupo de comunicações com períodos sobrepostos), nunca a soma bruta.
 
 ## 10. Segurança e conformidade
 

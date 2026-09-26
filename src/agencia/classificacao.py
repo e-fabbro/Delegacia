@@ -9,7 +9,8 @@ MINIMO = 4  # pontuação abaixo disto -> OUTRO
 PISTAS: dict[str, list[tuple[str, int]]] = {
     "RIF": [
         (r"RELATORIO DE INTELIGENCIA FINANCEIRA", 5), (r"\bCOAF\b", 3), (r"\bRIF\b", 2),
-        (r"COMUNICACAO", 1), (r"COMUNICANTE", 2),
+        (r"COMUNICACAO", 1), (r"COMUNICANTE", 2), (r"INFORMACOES ADICIONAIS", 2), (r"ENQUADRAMENTO", 1),
+        (r"\b(COS|COA)\b", 1),
     ],
     "SIMBA": [
         (r"\bSIMBA\b", 5), (r"NATUREZA_LANCAMENTO", 4), (r"CPF_CNPJ_OD", 4), (r"NUMERO_BANCO", 2),
