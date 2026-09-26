@@ -1,0 +1,18 @@
+# hermes/ponte-nexo.service — ponte local Hermes → Agência Nexo (instalar em /etc/systemd/system/).
+# Escuta só em 127.0.0.1:8791; token em /etc/agencia-nexo/ponte.token (root:nexo 0640).
+[Unit]
+Description=Agência Nexo — ponte local para o perfil Hermes nexo
+After=network.target nexo-egress-nft.service
+
+[Service]
+Type=simple
+User=nexo
+Group=nexo
+Environment=AGENCIA_PONTE_TOKEN_ARQUIVO=/etc/agencia-nexo/ponte.token
+Environment=AGENCIA_PONTE_PORTA=8791
+ExecStart=/usr/bin/python3 /opt/agencia-nexo/hermes/ponte_nexo.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

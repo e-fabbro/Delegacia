@@ -60,6 +60,8 @@ def test_so_login_chatgpt_sem_chave_de_api(raiz_projeto):
     chave = re.compile(r"(ANTHROPIC|OPENAI|CODEX)_API_KEY")
     for pasta in ("ops", "hermes"):
         for arq in (raiz_projeto / pasta).iterdir():
+            if not arq.is_file() or arq.suffix == ".pyc":
+                continue
             for linha in arq.read_text(encoding="utf-8").splitlines():
                 restante = re.sub(r"-u (ANTHROPIC|OPENAI|CODEX)_API_KEY", "", linha)
                 assert not chave.search(restante), f"{arq.name}: {linha.strip()}"

@@ -158,6 +158,7 @@ def test_nexo_run_curta_e_longa(raiz_projeto, ambiente):
     p = subprocess.run(["bash", run, "analisar", "TESTE", "quem paga?"], env=env, capture_output=True, text=True)
     aviso = json.loads(p.stdout)
     assert aviso["status"] == "em_execucao"
+    assert os.path.exists(aviso["resultado"])  # criado antes da resposta: sem corrida com a ponte
     pronto = aviso["pronto"]
     for _ in range(50):
         if os.path.exists(pronto):
