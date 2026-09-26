@@ -169,3 +169,19 @@ def test_nexo_run_curta_e_longa(raiz_projeto, ambiente):
     assert "quem paga?" in (tmp / "stdin").read_text()
     # eventos do Codex ficam no log do caso
     assert list((tmp / "casos" / "TESTE" / "log").glob("codex_analisar_*.jsonl"))
+
+
+def test_teste_headless_monta_caso_com_todas_as_fontes(raiz_projeto):
+    # E2 exige os cinco especialistas em paralelo: o TESTE precisa de RIF, bancário, telemático,
+    # societário e cripto (todos sintéticos, de tests/fixtures).
+    texto = (raiz_projeto / "ops" / "teste_headless.sh").read_text(encoding="utf-8")
+    for nome in ("rif_12_sintetico.pdf", "simba_3contas.csv", "ccs_3contas.xlsx", "telematica_sintetica.csv",
+                 "erb_sintetica.csv", "societario_sintetico.xlsx", "cripto_sintetico.csv"):
+        assert nome in texto, nome
+        assert (raiz_projeto / "tests" / "fixtures" / nome).is_file(), nome
+
+
+@pytest.mark.parametrize("arquivo", ["status.md", "caso-novo.md", "diligencias.md", "ingerir.md"])
+def test_comandos_curtos_abrem_com_codinome(raiz_projeto, arquivo):
+    # O canal só identifica o caso pelo codinome: toda resposta abre com "CASO <COD>".
+    assert "Comece a resposta com `CASO <codinome>`" in (raiz_projeto / "comandos" / arquivo).read_text(encoding="utf-8")

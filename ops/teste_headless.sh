@@ -28,7 +28,8 @@ import shutil, sys
 from pathlib import Path
 destino = Path(sys.argv[1]) / "00_brutos"
 fix = Path("tests/fixtures")
-for nome in ("ccs_3contas.xlsx", "rif_12_sintetico.pdf", "simba_3contas.csv"):
+for nome in ("rif_12_sintetico.pdf", "simba_3contas.csv", "ccs_3contas.xlsx", "telematica_sintetica.csv",
+             "erb_sintetica.csv", "societario_sintetico.xlsx", "cripto_sintetico.csv"):
     shutil.copy(fix / nome, destino / nome)
 PY
 fi
