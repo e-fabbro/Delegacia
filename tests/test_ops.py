@@ -4,7 +4,7 @@ import subprocess
 import pytest
 
 SCRIPTS = ["ops/setup_vps.sh", "ops/nexo_egress_refresh.sh", "ops/nexo_montar_casos.sh",
-           "ops/nexo_exec.sh", "ops/teste_headless.sh", "hermes/nexo_run.sh"]
+           "ops/nexo_exec.sh", "ops/teste_headless.sh", "hermes/nexo_run.sh", "ops/instalar_ponte.sh"]
 
 
 @pytest.mark.parametrize("script", SCRIPTS)
@@ -135,3 +135,18 @@ def test_setup_reexecuta_com_volume_montado(raiz_projeto):
     # Montado sem allow_other, nem root enxerga /srv/casos: mkdir/chown nele quebram o setup.
     texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
     assert 'sudo -u "${NEXO_USER}" mountpoint -q "${CASOS_DIR}"' in texto
+
+
+def test_logrotate_da_auditoria(raiz_projeto):
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    bloco = texto[texto.index("/etc/logrotate.d/agencia-nexo"):]
+    assert "su ${NEXO_USER} ${NEXO_USER}" in bloco  # diretório do nexo: sem `su` o logrotate recusa
+    assert "rotate 60" in bloco and "monthly" in bloco  # 5 anos de auditoria
+
+
+def test_operacao_documentada(raiz_projeto):
+    texto = (raiz_projeto / "docs" / "OPERACAO.md").read_text(encoding="utf-8")
+    for trecho in ("nexo-montar-casos", "codex login status", "nexo-egress-drop", "/var/log/agencia-nexo/auditoria.jsonl",
+                   "caso arquivar", "--senha-arquivo", "caso desarquivar", "_arquivo", "ponte-nexo", "usage limit"):
+        assert trecho in texto, trecho
+    assert "ANTHROPIC_API_KEY" not in texto and "OPENAI_API_KEY" not in texto

@@ -117,10 +117,13 @@ install -m 0755 "${AQUI}/nexo_montar_casos.sh" /usr/local/sbin/nexo-montar-casos
 sed -i "s|^NEXO_USER=.*|NEXO_USER=\"${NEXO_USER}\"|; s|^CASOS_DIR=.*|CASOS_DIR=\"${CASOS_DIR}\"|; s|^CIFRADO_DIR=.*|CIFRADO_DIR=\"${CIFRADO_DIR}\"|" /usr/local/sbin/nexo-montar-casos
 
 cat > /etc/logrotate.d/agencia-nexo <<EOF
+# Auditoria dos hooks: guardada por 5 anos (dura mais que um inquérito); diretório do nexo exige `su`.
 ${LOG_DIR}/*.jsonl ${LOG_DIR}/*.log {
-    weekly
-    rotate 12
+    su ${NEXO_USER} ${NEXO_USER}
+    monthly
+    rotate 60
     compress
+    delaycompress
     missingok
     notifempty
     create 0640 ${NEXO_USER} ${NEXO_USER}
