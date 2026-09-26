@@ -158,7 +158,8 @@ ExecStop=/usr/sbin/nft delete table inet nexo_egress
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable --now nexo-egress-nft.service >/dev/null
+systemctl enable nexo-egress-nft.service >/dev/null
+systemctl restart nexo-egress-nft.service   # recarrega a tabela (sets refeitos logo abaixo pelo refresh)
 
 echo ">> 5. refresh periódico dos IPs permitidos"
 install -m 0755 "${AQUI}/nexo_egress_refresh.sh" /usr/local/sbin/nexo-egress-refresh

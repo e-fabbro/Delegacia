@@ -114,3 +114,10 @@ def test_nft_permite_icmp_do_nexo(raiz_projeto):
     texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
     assert "meta l4proto ipv6-icmp accept" in texto
     assert "meta l4proto icmp accept" in texto
+
+
+def test_setup_recarrega_regras_ao_reexecutar(raiz_projeto):
+    # `enable --now` não recarrega um oneshot já ativo: regra nova só vale com restart.
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert "systemctl restart nexo-egress-nft.service" in texto
+    assert texto.index("systemctl restart nexo-egress-nft.service") < texto.index("systemctl start nexo-egress-refresh.service")
