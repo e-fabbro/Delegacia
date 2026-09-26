@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Handoff da Agência Nexo para os pipelines DRCC (PROVISÓRIO — substituir pelo handoff_schema.json da camada comum/)",
+  "type": "object",
+  "required": ["versao_handoff", "gerado_em", "caso", "documentos", "envolvidos", "achados", "diligencias", "resumo"],
+  "properties": {
+    "versao_handoff": { "type": "string" },
+    "gerado_em": { "type": "string" },
+    "caso": {
+      "type": "object",
+      "required": ["codinome", "fase"],
+      "properties": {
+        "codinome": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]{1,31}$" },
+        "fase": { "type": "string" },
+        "agentes_concluidos": { "type": "array", "items": { "type": "string" } },
+        "alertas": { "type": "array" },
+        "pendencias": { "type": "array" }
+      }
+    },
+    "produto": {
+      "type": ["object", "null"],
+      "required": ["arquivo", "sha256", "versao"],
+      "properties": { "arquivo": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "versao": { "type": "integer" } }
+    },
+    "documentos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["doc_id", "nome", "tipo", "sha256"],
+        "properties": {
+          "doc_id": { "type": "string", "pattern": "^DOC-\\d{3,}$" },
+          "nome": { "type": "string" },
+          "tipo": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "periodo_inicio": { "type": ["string", "null"] },
+          "periodo_fim": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "envolvidos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pseudonimo", "tipo", "papeis", "fontes", "n_achados"],
+        "properties": {
+          "pseudonimo": { "type": "string", "pattern": "^(PF|PJ|CT|TEL|EML|PIX|END)-\\d{4}$" },
+          "tipo": { "enum": ["PF", "PJ", "CT", "TEL", "EML", "PIX", "END"] },
+          "papeis": { "type": "array", "items": { "type": "string" } },
+          "contas": { "type": "array", "items": { "type": "string" } },
+          "fontes": { "type": "array", "items": { "type": "string" } },
+          "achados": { "type": "array", "items": { "type": "string" } },
+          "n_achados": { "type": "integer" },
+          "relevancia_maxima": { "enum": ["alta", "media", "baixa", null] }
+        }
+      }
+    },
+    "achados": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "agente", "rotulo", "enunciado", "fontes"],
+        "properties": {
+          "id": { "type": ["string", "null"] },
+          "agente": { "type": "string" },
+          "rotulo": { "enum": ["FATO", "INFERENCIA", "HIPOTESE", "LIMITACAO", null] },
+          "relevancia": { "enum": ["alta", "media", "baixa", null] },
+          "enunciado": { "type": ["string", "null"] },
+          "raciocinio": { "type": ["string", "null"] },
+          "entidades": { "type": "array", "items": { "type": "string" } },
+          "valores": { "type": "array", "items": { "type": "object", "properties": { "valor": { "type": ["number", "null"] }, "moeda": { "type": "string" }, "origem": { "type": ["string", "null"] } } } },
+          "periodo": { "type": ["object", "null"] },
+          "fontes": { "type": "array", "items": { "type": "string", "pattern": "^\\[F:DOC-\\d{3,}:[^\\]]+\\]$" } },
+          "diligencia": { "type": ["object", "null"] }
+        }
+      }
+    },
+    "convergencias": { "type": "array", "items": { "type": "object", "required": ["pseudonimo", "fontes"] } },
+    "diligencias": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tipo", "alvo", "motivos", "achados"],
+        "properties": {
+          "tipo": { "type": "string" },
+          "alvo": { "type": "string" },
+          "motivos": { "type": "array", "items": { "type": "string" } },
+          "relevancia": { "enum": ["alta", "media", "baixa"] },
+          "achados": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "resumo": {
+      "type": "object",
+      "required": ["documentos", "envolvidos", "achados", "diligencias"],
+      "properties": {
+        "documentos": { "type": "integer" }, "envolvidos": { "type": "integer" }, "achados": { "type": "integer" },
+        "diligencias": { "type": "integer" }, "convergencias": { "type": "integer" },
+        "por_tipo": { "type": "object" }, "por_rotulo": { "type": "object" }
+      }
+    },
+    "mapa_camada_comum": { "type": "object" }
+  }
+}

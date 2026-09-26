@@ -47,7 +47,7 @@ def test_render_gera_docx_sem_tokens(caso_com_produto):
     tudo = "\n".join(textos)
     assert not re.search(r"\b(PF|PJ|CT|TEL|EML|PIX|END)-\d{4}\b", tudo)
     assert PF1["nome"] in tudo and PF1["cpf"] in tudo and PJ1["cnpj"] in tudo and PF1["tel"] in tudo
-    assert "R$ 150.000,00" in tudo and "[F:DOC-001:p1]" in tudo
+    assert "R$ 150.000,00" in tudo and "[DOC-001, pág. 1]" in tudo and "[F:DOC-001" not in tudo
     assert doc.paragraphs[0].style.name.startswith("Heading")
     assert len(doc.tables) == 1 and len(doc.tables[0].rows) == 3
 

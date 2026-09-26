@@ -20,6 +20,7 @@ uv run python -m agencia -h  # CLI
 - Os hooks de `.claude/settings.json` valem também durante a construção: comandos Bash que
   citam diretórios protegidos são bloqueados fora de `python -m agencia`; use as ferramentas
   Write/Edit para gravar código que precise citá-los.
-- Scripts de sistema ficam em `ops/` e são **gerados, não executados** pelo engenheiro:
+- Scripts de sistema ficam em `ops/` e `hermes/` e são **gerados, não executados** pelo engenheiro:
   `setup_vps.sh` (usuário `nexo`, gocryptfs, nftables por UID, log), `nexo_montar_casos.sh`,
-  `nexo_egress_refresh.sh`.
+  `nexo_egress_refresh.sh`, `teste_headless.sh` (critério 8, `claude -p "/status TESTE"`) e
+  `hermes/nexo_run.sh` (ponte Telegram → Claude Code).

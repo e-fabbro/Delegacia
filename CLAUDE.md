@@ -42,7 +42,7 @@ Despache especialistas independentes **em paralelo** (várias chamadas Task na m
 5. Cada entrega passa por `revisor-prova`. Reprovado volta ao agente com a lista de falhas. Máximo 2 ciclos; no 3º, escalar ao Fabbro.
 6. Com 2+ especialistas aprovados → `integrador-vinculos` → `revisor-prova`.
 7. `redator` → `revisor-prova`.
-8. `python -m agencia matrizes <COD>`, `render`, `handoff`.
+8. `python -m agencia matrizes <COD>`, `render <COD> informacao_analise_vN.md`, `render <COD> matrizes.xlsx`, `handoff <COD>`. Se `render` devolver `tokens_remanescentes > 0`, registre em `pendencias` (token sem identidade no cofre).
 9. Atualizar `estado.json` e emitir o resumo.
 
 ## Formato do resumo final (vai para o Telegram — só pseudônimos)

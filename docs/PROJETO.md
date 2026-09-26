@@ -127,7 +127,7 @@ Detalhe completo em `.claude/agents/`.
 | cripto | `cripto importar`, `cripto fluxos`, `cripto enderecos`, `cripto exchanges` |
 | integração | `grafo construir [--sem-achados]`, `grafo centrais [--top --tipo]`, `grafo exportar [--formato html\|json\|graphml\|todos]`, `linha-tempo integrada [--granularidade --entidade --inicio --fim]` |
 | qualidade | `achados validar [agente]`, `achados verificar [agente]` (resolve ponteiros e confere valores, entidades e datas no caso.db), `achados verificar --arquivo <md>` (ancoragem de nota/produto), `achados diligencias` |
-| saída | `matrizes`, `render`, `handoff` |
+| saída | `matrizes` (xlsx pseudonimizado com todas as tabelas do caso), `render <arquivo> [--ponteiros legivel\|manter\|remover] [--sem-docx]` (md→md+docx, xlsx, html, json reidentificados em `04_produtos/render/`), `handoff [--reidentificar]` (JSON validado por `schemas/handoff.schema.json`) |
 
 Toda saída de comando em JSON (padrão) ou tabela Markdown (`--md`), sempre pseudonimizada. Layouts de fonte (colunas do SIMBA/CCS, padrões textuais do RIF) ficam em `config/layouts/*.yaml` e são ajustados sem tocar no código; `AGENCIA_LAYOUTS` aponta para um diretório alternativo.
 
@@ -154,7 +154,8 @@ Convenções numéricas: valores em centavos inteiros internamente (saída em re
 
 ## 11. Integrações
 
-- **Pipelines DRCC**: `handoff.json` segue o `handoff_schema.json` da camada `comum/`; alimenta as seções de fatos da representação e do relatório final.
+- **Pipelines DRCC**: `handoff.json` segue o `handoff_schema.json` da camada `comum/`; alimenta as seções de fatos da representação e do relatório final. **Provisório**: até o schema real chegar, vale `schemas/handoff.schema.json`, e `agencia.handoff.MAPA_COMUM` registra a correspondência de campos prevista. O pacote em `04_produtos/` é pseudonimizado; `handoff --reidentificar` grava a versão com identidades em `04_produtos/render/`.
+- **Hermes/Telegram**: `hermes/nexo_run.sh` (instalado como `/usr/local/bin/nexo_run`, chamado via `sudo -u nexo`) encapsula `claude -p`; ações longas rodam em segundo plano com log em `/srv/casos/<COD>/log/`. `ops/teste_headless.sh` executa o critério de aceite 8 na VPS.
 - **custodia.py**: incorporado como `agencia.custodia`.
 - **Ferramenta de RIF (browser)** e **app de vínculos CNPJ**: reaproveitar parsers e visualização no `grafo exportar`.
 - **Vault Obsidian** (`_pessoas/PF`, `_pessoas/PJ`, `_identificadores`): exportação opcional, **somente pseudonimizada** (o vault sincroniza via Drive).

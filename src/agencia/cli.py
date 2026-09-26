@@ -5,7 +5,7 @@ Erros de uso saem em JSON no stderr com código 1.
 """
 import argparse
 
-from agencia import achados, agregados, banco, caso, cofre, grafo, ingestao, integracao, layouts, render, rif, saida
+from agencia import achados, agregados, banco, caso, cofre, grafo, handoff, ingestao, integracao, layouts, matrizes, render, rif, saida
 
 
 def _md(p: argparse.ArgumentParser) -> None:
@@ -254,12 +254,26 @@ def construir_parser() -> argparse.ArgumentParser:
     _md(p)
     p.set_defaults(fn=lambda a: achados.diligencias(a.codinome, a.agente))
 
-    # ---- render ----
-    p = grupos.add_parser("render", help="reidentifica um produto e gera .md/.docx em 04_produtos/render/")
+    # ---- saídas (F5) ----
+    p = grupos.add_parser("matrizes", help="consolida tabelas do caso e das análises em 04_produtos/matrizes.xlsx (pseudonimizado)")
     p.add_argument("codinome")
-    p.add_argument("arquivo", help="relativo a 04_produtos/, ex.: informacao_analise_v1.md")
     _md(p)
-    p.set_defaults(fn=lambda a: render.render(a.codinome, a.arquivo))
+    p.set_defaults(fn=lambda a: matrizes.matrizes(a.codinome))
+
+    p = grupos.add_parser("render", help="reidentifica um produto de 04_produtos/ (md→md+docx, xlsx, html, json) em 04_produtos/render/")
+    p.add_argument("codinome")
+    p.add_argument("arquivo", help="relativo a 04_produtos/, ex.: informacao_analise_v1.md, matrizes.xlsx, grafo.html")
+    p.add_argument("--ponteiros", choices=["legivel", "manter", "remover"], default="legivel",
+                   help="[F:DOC-003:tx#2] → [DOC-003, lançamento 2] (legivel, padrão), inalterado (manter) ou removido")
+    p.add_argument("--sem-docx", dest="sem_docx", action="store_true", help="para .md, gera só o .md reidentificado")
+    _md(p)
+    p.set_defaults(fn=lambda a: render.render(a.codinome, a.arquivo, ponteiros=a.ponteiros, docx_=not a.sem_docx))
+
+    p = grupos.add_parser("handoff", help="gera 04_produtos/handoff.json (pseudonimizado) para os pipelines de representação e relatório final")
+    p.add_argument("codinome")
+    p.add_argument("--reidentificar", action="store_true", help="grava também 04_produtos/render/handoff.json com identidades reais")
+    _md(p)
+    p.set_defaults(fn=lambda a: handoff.handoff(a.codinome, reidentificar=a.reidentificar))
 
     return raiz
 

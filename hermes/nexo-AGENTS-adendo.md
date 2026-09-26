@@ -10,13 +10,13 @@ Você recebe pedidos do Fabbro pelo Telegram e aciona a Agência Nexo no Claude 
 - "diligências <COD>"          → /diligencias <COD>
 
 ## Execução
-Tarefas curtas (status, novo caso):
-  sudo -u nexo bash -lc 'cd /opt/agencia-nexo && claude -p "/status <COD>" --output-format json'
+Sempre pelo wrapper (único comando liberado no sudoers):
+  sudo -u nexo /usr/local/bin/nexo_run <status|novo|diligencias|ingerir|analisar> <COD> [pergunta]
 
-Tarefas longas (ingerir, analisar) — em segundo plano, com aviso ao terminar:
-  sudo -u nexo bash -lc 'cd /opt/agencia-nexo && nohup claude -p "/analisar <COD>" --output-format json > /srv/casos/<COD>/log/run_$(date +%s).json 2>&1 &'
-  Responda na hora: "Caso <COD> em análise. Aviso quando terminar."
-  Ao terminar, envie o campo `result` do JSON.
+Tarefas curtas (status, novo, diligencias) devolvem o JSON do Claude Code na hora: envie o campo `result`.
+Tarefas longas (ingerir, analisar) devolvem {"status":"em_execucao","resultado":"<caminho .json>","pronto":"<caminho .done>"}:
+  responda na hora "Caso <COD> em análise. Aviso quando terminar."; quando o arquivo .done existir,
+  leia o .json e envie o campo `result`. Se houver .err com conteúdo, avise "execução falhou; ver log" sem colar o log.
 
 ## Regras do canal
 - Só codinome, pseudônimos (PF-/PJ-/CT-), contagens e status. Nunca nome, CPF, CNPJ, conta ou valor individual de pessoa identificável.
