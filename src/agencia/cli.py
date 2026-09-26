@@ -5,7 +5,7 @@ Erros de uso saem em JSON no stderr com código 1.
 """
 import argparse
 
-from agencia import caso, saida
+from agencia import caso, cofre, ingestao, render, saida
 
 
 def _md(p: argparse.ArgumentParser) -> None:
@@ -39,6 +39,30 @@ def construir_parser() -> argparse.ArgumentParser:
                    help="acrescenta item a uma lista, sem duplicar")
     _md(p)
     p.set_defaults(fn=lambda a: caso.estado(a.codinome, sets=a.sets, adds=a.adds))
+
+    # ---- ingerir ----
+    p = grupos.add_parser("ingerir", help="ingere os brutos novos: hash, custódia, classificação, extração, pseudonimização")
+    p.add_argument("codinome")
+    p.add_argument("--reclassificar", metavar="DOC-ID", help="reclassifica manualmente um documento (exige --tipo)")
+    p.add_argument("--tipo", choices=ingestao.TIPOS, help="tipo a atribuir com --reclassificar")
+    _md(p)
+    p.set_defaults(fn=lambda a: ingestao.ingerir(a.codinome, reclassificar=a.reclassificar, tipo=a.tipo))
+
+    # ---- cofre ----
+    p_cofre = grupos.add_parser("cofre", help="varreduras do cofre (nunca expõe valores)")
+    sub = p_cofre.add_subparsers(dest="comando", required=True)
+    p = sub.add_parser("vazamento", help="conta identificadores em claro nos extraídos (ou em --arquivo)")
+    p.add_argument("codinome")
+    p.add_argument("--arquivo", metavar="REL", help="arquivo relativo ao caso, ex.: 04_produtos/x.md")
+    _md(p)
+    p.set_defaults(fn=lambda a: cofre.vazamento(a.codinome, arquivo=a.arquivo))
+
+    # ---- render ----
+    p = grupos.add_parser("render", help="reidentifica um produto e gera .md/.docx em 04_produtos/render/")
+    p.add_argument("codinome")
+    p.add_argument("arquivo", help="relativo a 04_produtos/, ex.: informacao_analise_v1.md")
+    _md(p)
+    p.set_defaults(fn=lambda a: render.render(a.codinome, a.arquivo))
 
     return raiz
 

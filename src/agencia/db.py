@@ -6,7 +6,7 @@ Cada fase acrescenta o seu DDL em `DDL_CASO` / `DDL_COFRE`; `inicializar` é ide
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 0
+SCHEMA_VERSION = 1
 
 DDL_META = """
 create table if not exists meta (
@@ -15,8 +15,46 @@ create table if not exists meta (
 );
 """
 
-DDL_CASO: list[str] = [DDL_META]
-DDL_COFRE: list[str] = [DDL_META]
+# F1
+DDL_DOCUMENTOS = """
+create table if not exists documentos (
+    doc_id      text primary key,
+    nome        text not null,
+    sha256      text not null,
+    tamanho     integer not null,
+    tipo        text not null,
+    confianca   real not null,
+    recebido_em text not null,
+    ingerido_em text not null,
+    formato     text,
+    paginas     integer,
+    linhas      integer,
+    avisos      text not null default '[]'
+);
+create table if not exists entidades (
+    pseudonimo  text primary key,
+    tipo        text not null,
+    primeiro_doc text
+);
+"""
+
+DDL_IDENTIDADES = """
+create table if not exists identidades (
+    chave      text primary key,
+    tipo       text not null,
+    pseudonimo text not null,
+    valor      text not null,
+    criado_em  text not null
+);
+create index if not exists idx_identidades_pseudonimo on identidades (pseudonimo);
+create table if not exists contadores (
+    prefixo text primary key,
+    ultimo  integer not null
+);
+"""
+
+DDL_CASO: list[str] = [DDL_META, DDL_DOCUMENTOS]
+DDL_COFRE: list[str] = [DDL_META, DDL_IDENTIDADES]
 
 
 def conectar(caminho: Path) -> sqlite3.Connection:
