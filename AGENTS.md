@@ -23,7 +23,7 @@ Referência de arquitetura: `docs/PROJETO.md`.
 
 | Tipo de documento (manifesto) | Subagente |
 |---|---|
-| qualquer bruto novo | `triagem-custodia` |
+| bruto novo com tipo `OUTRO` ou classificação < 0.8 | `triagem-custodia` |
 | RIF | `analista-rif` |
 | SIMBA, CCS, PIX, EXTRATO | `analista-bancario` |
 | TELEMATICA, ERB, BILHETAGEM | `analista-telematico` |
@@ -31,17 +31,29 @@ Referência de arquitetura: `docs/PROJETO.md`.
 | CRIPTO | `analista-cripto` |
 | 2+ especialistas concluídos | `integrador-vinculos` |
 | achados aprovados | `redator` |
-| todo achado e todo produto | `revisor-prova` |
+| todo achado e todo produto (em lote) | `revisor-prova` |
 
-Despache especialistas independentes **em paralelo** (abra um subagente por especialista, todos de uma vez, e espere os resultados). Cada despacho leva: codinome do caso, lista de doc_ids atribuídos, pergunta investigativa (se o Fabbro deu uma), caminho de saída `03_analises/<agente>/`.
+Despache especialistas independentes **em paralelo**, respeitando o teto da seção Economia (abra até 3 de uma vez; ao fechar um, abra o próximo). Só despache especialista se houver documento do tipo dele. Cada despacho leva: codinome do caso, lista de doc_ids atribuídos, pergunta investigativa (se o Fabbro deu uma), caminho de saída `03_analises/<agente>/`.
+
+## Economia
+
+A cota de uso da conta ChatGPT é compartilhada com outros agentes do Fabbro. Gaste o mínimo sem abrir mão de nenhum gate.
+
+- Não leia `docs/PROJETO.md` nem releia este arquivo (ele já está no seu contexto); não liste o repositório.
+- No máximo 3 subagentes abertos ao mesmo tempo. Feche cada subagente assim que a entrega dele for aprovada (ou escalada), antes de abrir outro.
+- Para esperar subagentes, use uma única espera longa (`timeout_ms` de 300000) em vez de várias curtas.
+- Ingestão: você mesmo roda a ingestão pela CLI (`python -m agencia ingerir <COD>`, `caso status <COD> --manifesto --md`, `cofre vazamento <COD>`). Só despache `triagem-custodia` se algum documento vier `OUTRO` ou com `confianca_classificacao < 0.8`.
+- Revisão em lote: quando os especialistas terminarem, abra um único `revisor-prova` com a lista de todos os agentes a revisar; ele devolve um parecer por agente. Só o reprovado volta ao especialista, e a nova revisão cobre só ele.
+- Retomada: se `estado.json` mostra agente concluído e aprovado, não refaça; continue do ponto em que parou.
+- O gate não muda: toda entrega de especialista, do integrador e do redator passa pelo `revisor-prova`.
 
 ## Fluxo
 
 1. Ler `estado.json` (`python -m agencia caso status <COD>`).
-2. Se houver brutos não ingeridos → `triagem-custodia`.
+2. Se houver brutos não ingeridos → rode a ingestão pela CLI (seção Economia); `triagem-custodia` só para `OUTRO` ou classificação duvidosa.
 3. Conferir `cofre vazamento`. Se > 0, parar e reportar ao Fabbro (doc_id e contagem) antes de qualquer análise.
-4. Despachar especialistas conforme o manifesto.
-5. Cada entrega passa por `revisor-prova`. Reprovado volta ao agente com a lista de falhas. Máximo 2 ciclos; no 3º, escalar ao Fabbro.
+4. Despachar especialistas conforme o manifesto (até 3 abertos; feche ao aprovar).
+5. Revisão em lote das entregas dos especialistas por um único `revisor-prova`. Reprovado volta ao agente com a lista de falhas. Máximo 2 ciclos; no 3º, escalar ao Fabbro.
 6. Com 2+ especialistas aprovados → `integrador-vinculos` → `revisor-prova`.
 7. `redator` → `revisor-prova`.
 8. `python -m agencia matrizes <COD>`, `render <COD> informacao_analise_vN.md`, `render <COD> matrizes.xlsx`, `handoff <COD>`. Se `render` devolver `tokens_remanescentes > 0`, registre em `pendencias` (token sem identidade no cofre).

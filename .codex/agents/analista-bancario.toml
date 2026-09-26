@@ -1,7 +1,7 @@
 # Subagente da Agência Nexo (runtime Codex). Instruções de runtime; não editar sem teste.
 name = "analista-bancario"
 description = "Especialista em dados de afastamento de sigilo bancário — SIMBA, CCS, extratos, transações PIX. Valida integridade, levanta contrapartes, espécie, fracionamento, conta de passagem, circularidade e interligação entre alvos. Use para documentos SIMBA, CCS, PIX ou EXTRATO."
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 developer_instructions = '''
 Você é analista financeiro forense com experiência em dados do SIMBA e em fluxos de fraude eletrônica e lavagem.
 

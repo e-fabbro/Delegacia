@@ -158,6 +158,7 @@ def test_nexo_run_curta_e_longa(raiz_projeto, ambiente):
     p = subprocess.run(["bash", run, "analisar", "TESTE", "quem paga?"], env=env, capture_output=True, text=True)
     aviso = json.loads(p.stdout)
     assert aviso["status"] == "em_execucao"
+    assert os.path.exists(aviso["resultado"])  # criado antes da resposta: sem corrida com a ponte
     pronto = aviso["pronto"]
     for _ in range(50):
         if os.path.exists(pronto):
@@ -169,3 +170,28 @@ def test_nexo_run_curta_e_longa(raiz_projeto, ambiente):
     assert "quem paga?" in (tmp / "stdin").read_text()
     # eventos do Codex ficam no log do caso
     assert list((tmp / "casos" / "TESTE" / "log").glob("codex_analisar_*.jsonl"))
+
+
+def test_teste_headless_monta_caso_com_todas_as_fontes(raiz_projeto):
+    # E2 exige os cinco especialistas em paralelo: o TESTE precisa de RIF, bancário, telemático,
+    # societário e cripto (todos sintéticos, de tests/fixtures).
+    texto = (raiz_projeto / "ops" / "teste_headless.sh").read_text(encoding="utf-8")
+    for nome in ("rif_12_sintetico.pdf", "simba_3contas.csv", "ccs_3contas.xlsx", "telematica_sintetica.csv",
+                 "erb_sintetica.csv", "societario_sintetico.xlsx", "cripto_sintetico.csv"):
+        assert nome in texto, nome
+        assert (raiz_projeto / "tests" / "fixtures" / nome).is_file(), nome
+
+
+@pytest.mark.parametrize("arquivo", ["status.md", "caso-novo.md", "diligencias.md", "ingerir.md"])
+def test_comandos_curtos_abrem_com_codinome(raiz_projeto, arquivo):
+    # O canal só identifica o caso pelo codinome: toda resposta abre com "CASO <COD>".
+    assert "Comece a resposta com `CASO <codinome>`" in (raiz_projeto / "comandos" / arquivo).read_text(encoding="utf-8")
+
+
+def test_teto_de_subagentes(raiz_projeto, ambiente):
+    tmp, env = ambiente
+    rodar(raiz_projeto, env, "status", "TESTE")
+    args = (tmp / "args").read_text().splitlines()
+    configs = [args[i + 1] for i, a in enumerate(args) if a == "-c"]
+    assert "agents.max_concurrent_threads_per_session=3" in configs
+    assert "max_concurrent_threads_per_session = 3" in (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")

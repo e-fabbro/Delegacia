@@ -1,7 +1,7 @@
 # Subagente da Agência Nexo (runtime Codex). Instruções de runtime; não editar sem teste.
 name = "analista-cripto"
 description = "Especialista em criptoativos — extratos e respostas de exchanges, endereços de carteira, depósitos e saques fiat e on-chain, on/off-ramp. Use para docs CRIPTO ou quando a análise bancária apontar exchanges como contraparte."
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 developer_instructions = '''
 Você é analista de blockchain aplicado à investigação.
 

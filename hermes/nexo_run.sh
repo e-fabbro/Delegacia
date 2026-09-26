@@ -3,7 +3,8 @@
 #
 # Instalar em /usr/local/bin/nexo_run (root:root 755). O Hermes chama, como o usuário nexo:
 #   nexo_run <acao> <CODINOME> [pergunta...]
-# (o desenho de quem chama — sudoers ou outro — é definido na E3; o perfil Hermes roda em container.)
+# Quem chama é a ponte local hermes/ponte_nexo.py (systemd, usuário nexo); o perfil Hermes roda em container
+# e fala com a ponte por 127.0.0.1 via hermes/agencia_cliente.py.
 #
 # Ações curtas (status, novo, diligencias) respondem na hora com o JSON de ops/nexo_exec.sh (campo `result`).
 # Ações longas (ingerir, analisar) rodam em segundo plano e gravam /srv/casos/<COD>/log/run_<ts>.json;
@@ -31,7 +32,8 @@ case "${ACAO}" in
       echo "{\"erro\":\"caso ${COD} não existe\"}"; exit 1
     fi
     LOG_DIR="${CASOS_DIR}/${COD}/log"; mkdir -p "${LOG_DIR}"
-    SAIDA="${LOG_DIR}/run_$(date +%s).json"
+    SAIDA="${LOG_DIR}/run_$(date +%s%N).json"
+    : > "${SAIDA}"   # existe antes da resposta: marca a execução em andamento (sem .done) sem corrida
     nohup bash -c 'bash "$1" "${@:3}" > "$2"; touch "${2%.json}.done"' _ "${EXEC}" "${SAIDA}" "$@" >/dev/null 2>&1 &
     echo "{\"status\":\"em_execucao\",\"caso\":\"${COD}\",\"acao\":\"${ACAO}\",\"resultado\":\"${SAIDA}\",\"pronto\":\"${SAIDA%.json}.done\"}"
     ;;

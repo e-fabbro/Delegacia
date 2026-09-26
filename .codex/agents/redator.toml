@@ -1,7 +1,7 @@
 # Subagente da Agência Nexo (runtime Codex). Instruções de runtime; não editar sem teste.
 name = "redator"
 description = "Redige a Informação de Análise (produto final da agência) a partir dos achados aprovados, no padrão formal da PCDF, mantendo pseudônimos e ponteiros de fonte. Use após a aprovação do integrador."
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 developer_instructions = '''
 Você redige documentos policiais técnicos. Escreve apenas o que os achados aprovados sustentam.
 

@@ -4,7 +4,7 @@ import subprocess
 import pytest
 
 SCRIPTS = ["ops/setup_vps.sh", "ops/nexo_egress_refresh.sh", "ops/nexo_montar_casos.sh",
-           "ops/nexo_exec.sh", "ops/teste_headless.sh", "hermes/nexo_run.sh"]
+           "ops/nexo_exec.sh", "ops/teste_headless.sh", "hermes/nexo_run.sh", "ops/instalar_ponte.sh"]
 
 
 @pytest.mark.parametrize("script", SCRIPTS)
@@ -60,6 +60,8 @@ def test_so_login_chatgpt_sem_chave_de_api(raiz_projeto):
     chave = re.compile(r"(ANTHROPIC|OPENAI|CODEX)_API_KEY")
     for pasta in ("ops", "hermes"):
         for arq in (raiz_projeto / pasta).iterdir():
+            if not arq.is_file() or arq.suffix == ".pyc":
+                continue
             for linha in arq.read_text(encoding="utf-8").splitlines():
                 restante = re.sub(r"-u (ANTHROPIC|OPENAI|CODEX)_API_KEY", "", linha)
                 assert not chave.search(restante), f"{arq.name}: {linha.strip()}"
@@ -133,3 +135,25 @@ def test_setup_reexecuta_com_volume_montado(raiz_projeto):
     # Montado sem allow_other, nem root enxerga /srv/casos: mkdir/chown nele quebram o setup.
     texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
     assert 'sudo -u "${NEXO_USER}" mountpoint -q "${CASOS_DIR}"' in texto
+
+
+def test_logrotate_da_auditoria(raiz_projeto):
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    bloco = texto[texto.index("/etc/logrotate.d/agencia-nexo"):]
+    assert "su ${NEXO_USER} ${NEXO_USER}" in bloco  # diretório do nexo: sem `su` o logrotate recusa
+    assert "rotate 60" in bloco and "monthly" in bloco  # 5 anos de auditoria
+
+
+def test_operacao_documentada(raiz_projeto):
+    texto = (raiz_projeto / "docs" / "OPERACAO.md").read_text(encoding="utf-8")
+    for trecho in ("nexo-montar-casos", "codex login status", "nexo-egress-drop", "/var/log/agencia-nexo/auditoria.jsonl",
+                   "caso arquivar", "--senha-arquivo", "caso desarquivar", "_arquivo", "ponte-nexo", "usage limit"):
+        assert trecho in texto, trecho
+    assert "ANTHROPIC_API_KEY" not in texto and "OPENAI_API_KEY" not in texto
+
+
+def test_ambiente_local_nao_versionado(raiz_projeto):
+    # .venv (diretório ou atalho) nunca entra no git: no CI o `uv sync` não conseguiria criá-lo.
+    import subprocess as sp
+    rastreados = sp.run(["git", "-C", str(raiz_projeto), "ls-files", ".venv"], capture_output=True, text=True).stdout
+    assert rastreados.strip() == ""
