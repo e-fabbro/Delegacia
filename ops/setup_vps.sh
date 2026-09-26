@@ -4,20 +4,23 @@
 # GERADO NA F0. Revisar antes de executar. Executar como root, idempotente.
 # O que faz:
 #   1. instala gocryptfs, nftables e utilitários;
-#   2. cria o usuário de sistema `nexo` (sem sudo, shell bash, sem senha);
+#   2. cria o usuário de sistema `nexo` (sem sudo, shell bash, sem senha) e o config do Codex dele
+#      (~nexo/.codex/config.toml: sandbox workspace-write sem rede, hooks do projeto, sem busca web);
 #   3. cria /srv/casos (ponto de montagem) sobre volume cifrado gocryptfs em
 #      /srv/.casos.cifrado — a montagem é manual após reboot (ops/nexo_montar_casos.sh);
 #   4. cria /var/log/agencia-nexo (auditoria dos hooks e saídas headless);
-#   5. instala regras nftables por UID: o usuário `nexo` só sai para a API e o OAuth da
-#      Anthropic e api.telegram.org (443) e DNS; o resto é registrado e descartado.
+#   5. instala regras nftables por UID: o usuário `nexo` só sai para o Codex/ChatGPT (API e login)
+#      e api.telegram.org (443) e DNS; o resto é registrado e descartado.
 #      Carrega só a tabela `inet nexo_egress` por unidade própria (nexo-egress-nft.service):
 #      não habilita nftables.service, cuja config padrão do Ubuntu esvazia o ruleset e apagaria o Docker;
 #   6. instala o refresh periódico dos IPs permitidos (systemd timer);
-#   7. clona/atualiza o repositório em /opt/agencia-nexo, instala o uv em /usr/local/bin e roda
+#   7. clona/atualiza o repositório em /opt/agencia-nexo (root:root, só leitura para o nexo — o sandbox
+#      do Codex grava no diretório de trabalho, e o nexo não pode alterar hooks nem agentes),
+#      instala o uv em /usr/local/bin e roda
 #      `uv sync --frozen` com o Python do sistema (como root, porque `nexo` não alcança PyPI/GitHub
 #      por causa do item 5; Python gerenciado pelo uv ficaria em /root, ilegível pelo nexo).
 #
-# NÃO faz: login OAuth do Claude Code para o usuário `nexo` (ver "Depois de executar").
+# NÃO faz: login ChatGPT do Codex para o usuário `nexo` (ver "Depois de executar"). Chave de API: nunca.
 set -euo pipefail
 
 NEXO_USER="${NEXO_USER:-nexo}"
@@ -26,8 +29,8 @@ REPO_DIR="${REPO_DIR:-/opt/agencia-nexo}"
 CASOS_DIR="${CASOS_DIR:-/srv/casos}"
 CIFRADO_DIR="${CIFRADO_DIR:-/srv/.casos.cifrado}"
 LOG_DIR="${LOG_DIR:-/var/log/agencia-nexo}"
-# API + OAuth (login e renovação do token) da Anthropic; Telegram para o canal.
-HOSTS_PERMITIDOS="${HOSTS_PERMITIDOS:-api.anthropic.com console.anthropic.com platform.claude.com claude.ai api.telegram.org}"
+# Codex com login ChatGPT (backend, login e renovação do token) e Telegram para o canal.
+HOSTS_PERMITIDOS="${HOSTS_PERMITIDOS:-chatgpt.com auth.openai.com api.openai.com api.telegram.org}"
 HERMES_USER="${HERMES_USER:-}"   # usuário que roda o Hermes; vazio = não configura sudoers
 
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -47,17 +50,35 @@ if ! id -u "${NEXO_USER}" >/dev/null 2>&1; then
   useradd --system --create-home --home-dir "/home/${NEXO_USER}" --shell /bin/bash "${NEXO_USER}"
 fi
 NEXO_UID="$(id -u "${NEXO_USER}")"
-# Claude Code: sem telemetria/tráfego não essencial (hosts bloqueados pelo item 5).
-cat > "/home/${NEXO_USER}/.profile.d-agencia.sh" <<'EOF'
-export DISABLE_TELEMETRY=1
-export DISABLE_ERROR_REPORTING=1
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-export AGENCIA_AUDIT_LOG=/var/log/agencia-nexo/auditoria.jsonl
-export PATH="$HOME/.local/bin:$PATH"
+cat > "/home/${NEXO_USER}/.profile.d-agencia.sh" <<EOF
+export AGENCIA_AUDIT_LOG=${LOG_DIR}/auditoria.jsonl
+export PATH="${REPO_DIR}/.venv/bin:\$HOME/.local/bin:\$PATH"
 EOF
 grep -q '.profile.d-agencia.sh' "/home/${NEXO_USER}/.profile" 2>/dev/null \
   || echo '[ -f "$HOME/.profile.d-agencia.sh" ] && . "$HOME/.profile.d-agencia.sh"' >> "/home/${NEXO_USER}/.profile"
 chown "${NEXO_USER}:${NEXO_USER}" "/home/${NEXO_USER}/.profile" "/home/${NEXO_USER}/.profile.d-agencia.sh"
+# Codex do nexo: mesmas travas que ops/nexo_exec.sh passa por linha de comando (defesa em profundidade).
+install -d -m 0700 -o "${NEXO_USER}" -g "${NEXO_USER}" "/home/${NEXO_USER}/.codex"
+cat > "/home/${NEXO_USER}/.codex/config.toml" <<EOF
+# Gerado por ops/setup_vps.sh. Runtime da Agência Nexo.
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+web_search = "disabled"
+
+[features]
+unified_exec = false
+hooks = true
+multi_agent = true
+
+[sandbox_workspace_write]
+network_access = false
+writable_roots = ["${CASOS_DIR}"]
+
+[projects."${REPO_DIR}"]
+trust_level = "trusted"
+EOF
+chown "${NEXO_USER}:${NEXO_USER}" "/home/${NEXO_USER}/.codex/config.toml"
+chmod 0600 "/home/${NEXO_USER}/.codex/config.toml"
 
 echo ">> 3. diretórios de casos (cifrado) e ${LOG_DIR}"
 mkdir -p "${CASOS_DIR}" "${CIFRADO_DIR}" "${LOG_DIR}"
@@ -164,7 +185,11 @@ if [[ ! -x /usr/local/bin/uv ]]; then
   curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh >/dev/null
 fi
 (cd "${REPO_DIR}" && UV_PYTHON_PREFERENCE=only-system /usr/local/bin/uv sync --frozen --python /usr/bin/python3.12 --quiet)
-chown -R "${NEXO_USER}:${NEXO_USER}" "${REPO_DIR}"
+chown -R root:root "${REPO_DIR}"
+chmod -R a+rX,go-w "${REPO_DIR}"
+if ! command -v codex >/dev/null 2>&1; then
+  echo "   codex não encontrado; instale o Codex CLI (npm i -g @openai/codex) antes de usar o Nexo" >&2
+fi
 
 if [[ -n "${HERMES_USER}" ]] && id -u "${HERMES_USER}" >/dev/null 2>&1; then
   echo ">> 7. sudoers: ${HERMES_USER} -> ${NEXO_USER} (só bash -lc, sem senha)"
@@ -180,9 +205,10 @@ cat <<EOF
 CONCLUÍDO.
 Depois de executar:
   - montar o volume:            nexo-montar-casos            (a cada reboot; pede a senha)
-  - autenticar o Claude Code:   sudo -u ${NEXO_USER} -i claude   (login OAuth da conta do Fabbro; único
-                                método. Se falhar, ver descartes abaixo e ajustar HOSTS_PERMITIDOS)
+  - autenticar o Codex:         sudo -u ${NEXO_USER} -i codex login --device-auth   (login ChatGPT próprio do
+                                nexo; nunca copiar auth.json de outro perfil. Se falhar, ver descartes abaixo)
+  - conferir:                   sudo -u ${NEXO_USER} -i codex login status
   - testar o bloqueio:          sudo -u ${NEXO_USER} -i bash -c 'curl -sS -m 5 https://example.com || echo BLOQUEADO'
   - ver descartes:              journalctl -k | grep nexo-egress-drop
-  - atualizar código:           como root, git -C ${REPO_DIR} pull && (cd ${REPO_DIR} && UV_PYTHON_PREFERENCE=only-system uv sync --frozen); depois chown -R ${NEXO_USER}:${NEXO_USER} ${REPO_DIR}
+  - atualizar código:           como root, git -C ${REPO_DIR} pull && (cd ${REPO_DIR} && UV_PYTHON_PREFERENCE=only-system uv sync --frozen); depois chown -R root:root ${REPO_DIR}
 EOF

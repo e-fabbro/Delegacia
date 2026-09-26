@@ -29,9 +29,9 @@ Fabbro (Telegram)
    │
    ▼
 Nexo — perfil Hermes (/root/.hermes/profiles/nexo)     ← canal, fila, notificações
-   │  sudo -u nexo claude -p "/analisar <COD>"
+   │  nexo_run analisar <COD>  →  ops/nexo_exec.sh  →  codex exec (usuário nexo)
    ▼
-Nexo-núcleo — sessão principal do Claude Code (/opt/agencia-nexo/CLAUDE.md)
+Nexo-núcleo — sessão principal do Codex (/opt/agencia-nexo/AGENTS.md)
    │  despacha, controla estado, aplica gates de qualidade
    ├── triagem-custodia        (ingestão, hash, classificação, extração, pseudonimização)
    ├── analista-rif            (RIF/COAF)
@@ -47,22 +47,22 @@ Nexo-núcleo — sessão principal do Claude Code (/opt/agencia-nexo/CLAUDE.md)
 Pacote Python `agencia` (determinístico)  →  /srv/casos/<COD>/caso.db (SQLite)
 ```
 
-Limite do Claude Code: subagente não chama subagente. Toda coordenação passa pelo Nexo-núcleo.
+Runtime: Codex CLI (`codex exec`) com login ChatGPT próprio do usuário `nexo` (decisão do Fabbro, 26/09/2026; antes Claude Code). Subagentes em `.codex/agents/*.toml`. Por desenho, subagente não despacha subagente: toda coordenação passa pelo Nexo-núcleo.
 
 ## 4. Equipe
 
-| Agente | Fonte principal | Entrega | Modelo |
+| Agente | Fonte principal | Entrega | Esforço de raciocínio |
 |---|---|---|---|
-| Nexo-núcleo | — | plano, despacho, estado, resumo | opus |
-| triagem-custodia | todos os brutos | manifesto, cadeia, extraídos pseudonimizados | haiku |
-| analista-rif | RIF (COAF) | achados RIF + consolidado por envolvido | sonnet |
-| analista-bancario | SIMBA, CCS, PIX, extratos | achados financeiros + matrizes | sonnet |
-| analista-telematico | respostas de provedores, ERB, bilhetagem | eventos normalizados em UTC, sessões, pendências de porta lógica | sonnet |
-| analista-societario | CNPJ/QSA, JUCIS, contratos | vínculos PJ, indícios de fachada | sonnet |
-| analista-cripto | extratos de exchange, endereços | fluxos fiat↔cripto, exchanges a oficiar | sonnet |
-| integrador-vinculos | caso.db + achados | grafo, convergências, matriz de hipóteses | opus |
-| redator | achados aprovados | Informação de Análise | opus |
-| revisor-prova | produto + achados | APROVADO / REPROVADO com lista | opus |
+| Nexo-núcleo | — | plano, despacho, estado, resumo | padrão do perfil |
+| triagem-custodia | todos os brutos | manifesto, cadeia, extraídos pseudonimizados | low |
+| analista-rif | RIF (COAF) | achados RIF + consolidado por envolvido | medium |
+| analista-bancario | SIMBA, CCS, PIX, extratos | achados financeiros + matrizes | medium |
+| analista-telematico | respostas de provedores, ERB, bilhetagem | eventos normalizados em UTC, sessões, pendências de porta lógica | medium |
+| analista-societario | CNPJ/QSA, JUCIS, contratos | vínculos PJ, indícios de fachada | medium |
+| analista-cripto | extratos de exchange, endereços | fluxos fiat↔cripto, exchanges a oficiar | medium |
+| integrador-vinculos | caso.db + achados | grafo, convergências, matriz de hipóteses | high |
+| redator | achados aprovados | Informação de Análise | high |
+| revisor-prova | produto + achados | APROVADO / REPROVADO com lista | high |
 
 ## 5. Estrutura de um caso
 
@@ -107,7 +107,7 @@ Limite do Claude Code: subagente não chama subagente. Toda coordenação passa 
 
 ## 8. Especialistas — escopo técnico (resumo)
 
-Detalhe completo em `.claude/agents/`.
+Detalhe completo em `.codex/agents/`.
 
 - **RIF**: tipo e origem do RIF (de ofício ou intercâmbio a pedido), comunicações COS/COA, segmento e comunicante, envolvidos e papéis, síntese das informações adicionais, consolidação por envolvido **sem somar movimentações sobrepostas**, sinais de alerta, diligências sugeridas.
 - **Bancário**: integridade do SIMBA (lacunas, OD vazio, saldo reconstruído), resumo por conta, contrapartes, espécie, fracionamento, conta de passagem, circularidade, interligação entre alvos, PIX, gateways/exchanges/bets.
@@ -137,25 +137,26 @@ Convenções numéricas: valores em centavos inteiros internamente (saída em re
 
 **Sigilo.** RIF e dados de afastamento de sigilo bancário são sigilosos (LC 105/2001; Lei 9.613/1998). A pseudonimização reduz o que chega à API, mas valores, datas e narrativas continuam indo ao modelo. Antes de rodar caso real:
 - verificar a norma interna da PCDF sobre tratamento de dado sigiloso por serviço de terceiro/nuvem;
-- confirmar a política de retenção de dados da conta Anthropic usada na VPS (há opção de retenção zero para clientes elegíveis);
+- confirmar a política de uso e retenção de dados da conta ChatGPT usada pelo `nexo` (plano; opção "melhorar o modelo para todos" desligada; planos Business/Enterprise não treinam com os dados por padrão);
 - registrar a decisão no procedimento, se for o caso.
 
 **VPS.**
 - Usuário Unix dedicado `nexo`; `/srv/casos` em volume cifrado (gocryptfs ou LUKS), montado manualmente após reboot.
 - Isolamento da Gutcha: a mesma VPS expõe webhook público do WhatsApp. O processo da Gutcha não pode ler `/srv/casos`. Ideal: VPS dedicada para a agência.
-- Egress do usuário `nexo` restrito a `api.anthropic.com` e `api.telegram.org` (nftables por UID).
+- Egress do usuário `nexo` restrito a `chatgpt.com`, `auth.openai.com`, `api.openai.com` e `api.telegram.org` (nftables por UID).
+- Repositório `/opt/agencia-nexo` é `root:root`, só leitura para o `nexo`: o sandbox do Codex grava no diretório de trabalho, e o modelo não pode alterar hooks nem agentes.
 - SSH só por chave; backups cifrados; descarte do caso ao fim do IP: `caso arquivar <COD>` exige fase `concluido` (ou `--forcar`), grava `<raiz>/_arquivo/<COD>_<ts>.tar.gz.enc` (todo o diretório do caso, inclusive brutos e cofre) cifrado com AES-256-GCM por bloco e chave scrypt da senha em `AGENCIA_ARQUIVO_SENHA` (ou `--senha-arquivo`), registra a custódia (acondicionamento dentro do pacote; descarte no sidecar `.arquivo.json` com hashes), verifica por decifragem e só apaga o diretório com `--apagar`. Sem senha só com `--sem-cifrar` explícito. `caso desarquivar` restaura e confere o hash. A senha fica com o Fabbro, fora da VPS; sem ela o pacote é irrecuperável.
 
-**Claude Code.**
-- `permissions.deny` bloqueia leitura de `00_brutos/` e `_cofre/`, rede e WebFetch/WebSearch.
-- Hook `guard_paths.py` (PreToolUse) repete os bloqueios, inclusive via Bash.
+**Codex.**
+- `ops/nexo_exec.sh` sempre roda `codex exec -s workspace-write` sem rede, com só `/srv/casos` gravável além do repositório, `approval_policy=never`, busca web desligada e `unified_exec` desligado (`write_stdin` não passaria pelo hook). `~nexo/.codex/config.toml` repete as travas.
+- Hook `guard_paths.py` (PreToolUse, `.codex/hooks.json`) bloqueia `00_brutos/`, `_cofre/`, `.env` e rede em comandos de shell e em `apply_patch`; falha fechado.
 - Hook `audit_log.py` (PostToolUse) registra cada chamada de ferramenta.
 - Esses controles são defesa em profundidade; o isolamento real vem do usuário Unix e das permissões de arquivo.
 
 ## 11. Integrações
 
 - **Pipelines DRCC**: `handoff.json` segue o `handoff_schema.json` da camada `comum/`; alimenta as seções de fatos da representação e do relatório final. **Provisório**: até o schema real chegar, vale `schemas/handoff.schema.json`, e `agencia.handoff.MAPA_COMUM` registra a correspondência de campos prevista. O pacote em `04_produtos/` é pseudonimizado; `handoff --reidentificar` grava a versão com identidades em `04_produtos/render/`.
-- **Hermes/Telegram**: `hermes/nexo_run.sh` (instalado como `/usr/local/bin/nexo_run`, chamado via `sudo -u nexo`) encapsula `claude -p`; ações longas rodam em segundo plano com log em `/srv/casos/<COD>/log/`. `ops/teste_headless.sh` executa o critério de aceite 8 na VPS.
+- **Hermes/Telegram**: `hermes/nexo_run.sh` (instalado como `/usr/local/bin/nexo_run`, chamado via `sudo -u nexo`) chama `ops/nexo_exec.sh` (`codex exec`); ações longas rodam em segundo plano com log em `/srv/casos/<COD>/log/`. `ops/teste_headless.sh` executa o critério de aceite 8 na VPS.
 - **custodia.py**: incorporado como `agencia.custodia`.
 - **Ferramenta de RIF (browser)** e **app de vínculos CNPJ**: reaproveitar parsers e visualização no `grafo exportar`.
 - **Vault Obsidian** (`_pessoas/PF`, `_pessoas/PJ`, `_identificadores`): exportação opcional, **somente pseudonimizada** (o vault sincroniza via Drive).
@@ -182,8 +183,8 @@ Total estimado: 31–41 h de sessões de construção supervisionadas. RIF + ban
 1. RIF sintético com 12 comunicações → parser extrai 12; consolidado por envolvido bate com a conferência manual; as 2 sobrepostas são sinalizadas.
 2. SIMBA sintético → saldo reconstruído bate com saldo informado; lacuna de datas plantada é detectada.
 3. `grep -E` por padrão de CPF/CNPJ em `02_extraido/` retorna 0 ocorrências.
-4. Tentativa do modelo de ler `00_brutos/` ou `_cofre/` (Read ou Bash) é bloqueada e registrada.
+4. Tentativa do modelo de ler `00_brutos/` ou `_cofre/` (shell ou `apply_patch`) é bloqueada e registrada.
 5. Produto com uma frase sem ponteiro → revisor-prova reprova e aponta a frase.
 6. `achados verificar` detecta valor adulterado em achado (diverge do caso.db).
 7. Render gera .docx sem nenhum token `PF-`/`PJ-` remanescente.
-8. Execução headless `claude -p "/analisar TESTE"` termina e devolve o resumo.
+8. Execução headless `ops/teste_headless.sh TESTE analisar` (`codex exec`) termina e devolve o resumo.

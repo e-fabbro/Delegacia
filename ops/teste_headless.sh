@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# ops/teste_headless.sh — critério de aceite 8: execução headless do Claude Code devolve o resumo.
+# ops/teste_headless.sh — critério de aceite 8: execução headless do Nexo (Codex) devolve o resumo.
 #
-# GERADO NA F5. Executar na VPS como o usuário `nexo` (ou via sudo -u nexo), com o Claude Code já
-# autenticado para esse usuário e /srv/casos montado. Não roda nos testes automatizados (sem rede).
+# Executar na VPS como o usuário `nexo` (sudo -u nexo -i ...), com `codex login` feito para esse
+# usuário e /srv/casos montado. Não roda nos testes automatizados (sem rede).
 #
-# Uso: ops/teste_headless.sh [CODINOME] [COMANDO]
+# Uso: ops/teste_headless.sh [CODINOME] [ACAO] [pergunta...]
 #   CODINOME  padrão TESTE (criado com brutos sintéticos se não existir)
-#   COMANDO   padrão "/status <COD>"; use "/analisar <COD>" para o pipeline completo
+#   ACAO      status (padrão) | analisar | ingerir | diligencias; aceita também "/analisar TESTE"
 set -euo pipefail
 
 COD="${1:-TESTE}"
-CMD="${2:-/status ${COD}}"
+ACAO="${2:-status}"; shift 2 2>/dev/null || shift $#
+ACAO="${ACAO#/}"; ACAO="${ACAO%% *}"; [[ "${ACAO}" == "caso-novo" ]] && ACAO="novo"
 REPO_DIR="${REPO_DIR:-/opt/agencia-nexo}"
 CASOS_DIR="${AGENCIA_CASOS:-/srv/casos}"
+PY="${REPO_DIR}/.venv/bin/python"
 LOG_DIR="${CASOS_DIR}/${COD}/log"
 TS="$(date +%Y%m%d_%H%M%S)"
 
@@ -20,8 +22,8 @@ cd "${REPO_DIR}"
 
 if [[ ! -f "${CASOS_DIR}/${COD}/estado.json" ]]; then
   echo ">> criando caso ${COD} com fixtures sintéticos"
-  uv run python -m agencia caso novo "${COD}" >/dev/null
-  uv run python - "${CASOS_DIR}/${COD}" <<'PY'
+  "${PY}" -m agencia caso novo "${COD}" >/dev/null
+  "${PY}" - "${CASOS_DIR}/${COD}" <<'PY'
 import shutil, sys
 from pathlib import Path
 destino = Path(sys.argv[1]) / "00_brutos"
@@ -32,17 +34,17 @@ PY
 fi
 mkdir -p "${LOG_DIR}"
 
-echo ">> claude -p \"${CMD}\" (timeout 30 min)"
+echo ">> nexo_exec ${ACAO} ${COD} (timeout 30 min)"
 SAIDA="${LOG_DIR}/headless_${TS}.json"
-if timeout 1800 claude -p "${CMD}" --output-format json > "${SAIDA}" 2> "${LOG_DIR}/headless_${TS}.err"; then
-  echo ">> terminou; resultado em ${SAIDA}"
+if timeout 1800 bash ops/nexo_exec.sh "${ACAO}" "${COD}" "$@" > "${SAIDA}"; then
+  echo ">> terminou; resultado em ${SAIDA} (eventos e stderr do Codex em ${LOG_DIR}/codex_${ACAO}_*)"
 else
-  echo "FALHA: claude -p saiu com erro; veja ${LOG_DIR}/headless_${TS}.err" >&2
+  echo "FALHA: nexo_exec saiu com erro; veja ${SAIDA} e ${LOG_DIR}/codex_${ACAO}_*.err" >&2
   exit 1
 fi
 
-# O campo `result` deve conter o resumo no formato do CLAUDE.md (sem nomes reais).
-uv run python - "${SAIDA}" "${COD}" <<'PY'
+# O campo `result` deve conter o resumo no formato do AGENTS.md (sem nomes reais).
+"${PY}" - "${SAIDA}" "${COD}" <<'PY'
 import json, re, sys
 dados = json.load(open(sys.argv[1], encoding="utf-8"))
 res = dados.get("result") if isinstance(dados, dict) else None

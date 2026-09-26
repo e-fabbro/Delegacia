@@ -3,7 +3,7 @@ name: testes
 
 on:
   push:
-    branches: ["main", "claude/**"]
+    branches: ["main", "claude/**", "vps/**"]
   pull_request:
     branches: ["main"]
 
