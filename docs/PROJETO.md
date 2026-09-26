@@ -162,15 +162,18 @@ Convenções numéricas: valores em centavos inteiros internamente (saída em re
 
 ## 12. Roadmap de construção
 
-| Fase | Entrega | Estimativa |
-|---|---|---|
-| F0 | Esqueleto, usuário `nexo`, volume cifrado, settings/hooks, testes de bloqueio | 2–3 h |
-| F1 | Ingestão, custódia, extração, pseudonimização, `cofre vazamento` | 4–5 h |
-| F2 | Parser RIF + analista-rif | 4–6 h |
-| F3 | Import SIMBA + análises bancárias + analista-bancario | 6–8 h |
-| F4 | Grafo, integrador, revisor, `achados verificar` | 4–5 h |
-| F5 | Redator, render, handoff, matrizes, perfil Hermes/Telegram | 3–4 h |
-| F6 | Telemático, societário, cripto | 8–10 h |
+| Fase | Entrega | Estimativa | Status |
+|---|---|---|---|
+| F0 | Esqueleto, usuário `nexo`, volume cifrado, settings/hooks, testes de bloqueio | 2–3 h | concluída |
+| F1 | Ingestão, custódia, extração, pseudonimização, `cofre vazamento` | 4–5 h | concluída |
+| F2 | Parser RIF + analista-rif | 4–6 h | concluída (layout sobre RIF sintético) |
+| F3 | Import SIMBA + análises bancárias + analista-bancario | 6–8 h | concluída (layout sobre SIMBA/CCS sintéticos) |
+| F4 | Grafo, integrador, revisor, `achados verificar` | 4–5 h | concluída |
+| F5 | Redator, render, handoff, matrizes, perfil Hermes/Telegram | 3–4 h | concluída (handoff com schema provisório; teste headless pendente na VPS) |
+| F6 | Telemático, societário, cripto | 8–10 h | concluída (layouts sobre formatos sintéticos) |
+| — | `caso arquivar/desarquivar`, CI (GitHub Actions), teste ponta a ponta | — | concluída |
+
+**Pendências que exigem o Fabbro**: amostras tarjadas reais (só cabeçalhos) de SIMBA, CCS, RIF, provedores, ERB/bilhetagem, exchange e QSA para fechar `config/layouts/`; `handoff_schema.json` da camada `comum/`; caminhos de `custodia.py`, da ferramenta de RIF e do app CNPJ; execução de `ops/teste_headless.sh` e instalação de `hermes/nexo_run.sh` na VPS.
 
 Total estimado: 31–41 h de sessões de construção supervisionadas. RIF + bancário operacionais ao fim da F3 (16–22 h).
 

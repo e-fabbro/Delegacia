@@ -8,6 +8,8 @@ Agência de análise investigativa multiagente — DRCC/DECOR/PCDF.
 
 ## Desenvolvimento
 
+CI: `.github/workflows/testes.yml` roda `uv sync --frozen`, regenera os fixtures sintéticos e executa `pytest` a cada push e PR. `tests/test_pipeline.py` percorre o caso inteiro (ingestão → análises → achados → grafo → produto → matrizes → render → handoff → arquivamento).
+
 ```bash
 uv sync                      # Python 3.12 + dependências (pyproject.toml / uv.lock)
 uv run pytest                # testes (só dados sintéticos em tests/fixtures/)
