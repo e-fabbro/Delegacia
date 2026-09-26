@@ -13,7 +13,9 @@ Regras:
   nem redirecionamento (> <) nem quebra de linha.
 - Bash: qualquer cliente de rede é bloqueado.
 """
+import datetime
 import json
+import os
 import re
 import shlex
 import sys
@@ -30,7 +32,30 @@ CABECALHO_PATCH = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (
 SHELLS = ("bash", "sh", "/bin/bash", "/bin/sh", "/usr/bin/bash")
 
 
+CONTEXTO: dict = {}
+
+
+def registrar_bloqueio(msg: str) -> None:
+    """PostToolUse não dispara em chamada bloqueada: o bloqueio entra na auditoria aqui."""
+    destino = os.environ.get("AGENCIA_AUDIT_LOG", "/var/log/agencia-nexo/auditoria.jsonl")
+    registro = {
+        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "sessao": CONTEXTO.get("session_id"),
+        "ferramenta": CONTEXTO.get("tool_name"),
+        "entrada": json.dumps(CONTEXTO.get("tool_input", {}), ensure_ascii=False)[:500],
+        "bloqueado": True,
+        "motivo": msg,
+    }
+    try:
+        os.makedirs(os.path.dirname(destino), exist_ok=True)
+        with open(destino, "a", encoding="utf-8") as f:
+            f.write(json.dumps(registro, ensure_ascii=False) + "\n")
+    except OSError:
+        pass  # sem log não libera: o bloqueio vale do mesmo jeito
+
+
 def bloquear(msg: str) -> None:
+    registrar_bloqueio(msg)
     print(f"BLOQUEADO pela política da Agência Nexo: {msg}", file=sys.stderr)
     sys.exit(2)
 
@@ -67,6 +92,8 @@ def desembrulhar(comando) -> str:
 
 def main() -> None:
     dados = json.load(sys.stdin)
+    if isinstance(dados, dict):
+        CONTEXTO.update({k: dados.get(k) for k in ("session_id", "tool_name", "tool_input")})
     ferramenta = dados.get("tool_name", "")
     entrada = dados.get("tool_input", {}) or {}
 

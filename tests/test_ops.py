@@ -98,3 +98,26 @@ def test_venv_usa_python_do_sistema(raiz_projeto):
     assert "UV_PYTHON_PREFERENCE=only-system" in texto
     assert "uv sync --frozen" in texto
     assert "/usr/local/bin" in texto  # uv visível para root e nexo
+
+
+def test_setup_sandbox_codex_no_ubuntu_2404(raiz_projeto):
+    # bwrap do sistema + perfil AppArmor do Ubuntu; nunca desligar a restrição de userns globalmente.
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert "bubblewrap" in texto and "apparmor-profiles" in texto
+    assert "/usr/share/apparmor/extra-profiles/bwrap-userns-restrict" in texto
+    assert "apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict" in texto
+    assert "apparmor_restrict_unprivileged_userns=0" not in texto
+
+
+def test_nft_permite_icmp_do_nexo(raiz_projeto):
+    # descoberta de vizinhos IPv6 (ff02::1:ff..) é ICMPv6: descartá-la quebra o IPv6 do nexo.
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert "meta l4proto ipv6-icmp accept" in texto
+    assert "meta l4proto icmp accept" in texto
+
+
+def test_setup_recarrega_regras_ao_reexecutar(raiz_projeto):
+    # `enable --now` não recarrega um oneshot já ativo: regra nova só vale com restart.
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert "systemctl restart nexo-egress-nft.service" in texto
+    assert texto.index("systemctl restart nexo-egress-nft.service") < texto.index("systemctl start nexo-egress-refresh.service")

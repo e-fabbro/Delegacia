@@ -177,3 +177,21 @@ def test_audit_log_trunca_entrada(raiz_projeto, tmp_path):
     rodar_hook(raiz_projeto, "audit_log.py", "Write", {"file_path": "x", "content": "a" * 5000}, env=env)
     registro = json.loads(destino.read_text(encoding="utf-8").splitlines()[0])
     assert len(registro["entrada"]) <= 500
+
+
+def test_bloqueio_fica_na_auditoria(raiz_projeto, tmp_path):
+    # PostToolUse não dispara em chamada bloqueada: o guard registra o bloqueio (critério 4).
+    destino = tmp_path / "auditoria.jsonl"
+    env = {"AGENCIA_AUDIT_LOG": str(destino), "PATH": "/usr/bin:/bin"}
+    proc = rodar_hook(raiz_projeto, "guard_paths.py", "Bash", {"command": f"cat {CASO}/00_brutos/rif.pdf"}, env=env)
+    assert proc.returncode == 2
+    registro = json.loads(destino.read_text(encoding="utf-8").splitlines()[0])
+    assert registro["bloqueado"] is True and registro["ferramenta"] == "Bash" and registro["sessao"] == "s1"
+    assert "00_brutos" in registro["entrada"] and registro["motivo"]
+
+
+def test_permitido_nao_duplica_auditoria(raiz_projeto, tmp_path):
+    destino = tmp_path / "auditoria.jsonl"
+    env = {"AGENCIA_AUDIT_LOG": str(destino), "PATH": "/usr/bin:/bin"}
+    rodar_hook(raiz_projeto, "guard_paths.py", "Bash", {"command": "python -m agencia caso status TESTE"}, env=env)
+    assert not destino.exists()

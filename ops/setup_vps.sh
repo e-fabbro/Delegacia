@@ -43,7 +43,12 @@ fi
 echo ">> 1. pacotes"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq gocryptfs fuse3 nftables git python3.12 python3.12-venv curl ca-certificates >/dev/null
+apt-get install -y -qq gocryptfs fuse3 nftables git python3.12 python3.12-venv curl ca-certificates \
+  bubblewrap apparmor-profiles apparmor-utils >/dev/null
+# Sandbox do Codex no Ubuntu 24.04: o Codex usa o bwrap do sistema; o perfil do próprio Ubuntu libera
+# user namespace só para o bwrap (sem desligar kernel.apparmor_restrict_unprivileged_userns).
+install -m 0644 /usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/bwrap-userns-restrict
+apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
 
 echo ">> 2. usuário ${NEXO_USER}"
 if ! id -u "${NEXO_USER}" >/dev/null 2>&1; then
@@ -69,6 +74,14 @@ web_search = "disabled"
 unified_exec = false
 hooks = true
 multi_agent = true
+apps = false
+plugins = false
+remote_plugin = false
+browser_use = false
+browser_use_external = false
+computer_use = false
+in_app_browser = false
+image_generation = false
 
 [sandbox_workspace_write]
 network_access = false
@@ -117,6 +130,8 @@ table inet nexo_egress {
         type filter hook output priority 0; policy accept;
         meta skuid != ${NEXO_UID} accept
         oif lo accept
+        meta l4proto icmp accept
+        meta l4proto ipv6-icmp accept
         ct state established,related accept
         udp dport 53 accept
         tcp dport 53 accept
@@ -143,7 +158,8 @@ ExecStop=/usr/sbin/nft delete table inet nexo_egress
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable --now nexo-egress-nft.service >/dev/null
+systemctl enable nexo-egress-nft.service >/dev/null
+systemctl restart nexo-egress-nft.service   # recarrega a tabela (sets refeitos logo abaixo pelo refresh)
 
 echo ">> 5. refresh periódico dos IPs permitidos"
 install -m 0755 "${AQUI}/nexo_egress_refresh.sh" /usr/local/sbin/nexo-egress-refresh
