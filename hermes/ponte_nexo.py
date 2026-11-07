@@ -7,6 +7,8 @@ POST /acao {"acao": ..., "caso": ..., "pergunta": ...} com `Authorization: Beare
 Ações: status | novo | diligencias (respondem na hora), ingerir | analisar (segundo plano, uma por caso),
 resultado (estado da última execução longa). Tudo passa por /usr/local/bin/nexo_run.
 Devolve só {"caso", "acao", "status", "result"}: nunca caminho, log ou conteúdo de /srv/casos.
+Com /srv/casos desmontado (após reboot) responde "indisponivel" sem chamar o Codex. Uma execução longa
+cujo processo morreu (ponte/VPS reiniciada) conta como interrompida: libera o caso para nova ação.
 Só biblioteca padrão.
 """
 import dataclasses
@@ -15,6 +17,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -24,15 +27,26 @@ ACOES = (*ACOES_CURTAS, *ACOES_LONGAS, "resultado")
 CODINOME = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 LIMITE_CORPO = 4096
 TIMEOUT_CURTA = 900  # segundos
+LIMITE_EXECUCAO = 6 * 3600  # sem .pid (formato antigo): execução sem .done há mais que isso está morta
+RAIZ_REAL = "/srv/casos"
 
 
 @dataclasses.dataclass
 class Config:
     token: str
     nexo_run: str = "/usr/local/bin/nexo_run"
-    casos: str = "/srv/casos"
+    casos: str = RAIZ_REAL
     host: str = "127.0.0.1"
     porta: int = 8791
+    exigir_montagem: bool | None = None  # None: só exige quando `casos` é a raiz real (volume cifrado)
+
+    def __post_init__(self):
+        if self.exigir_montagem is None:
+            self.exigir_montagem = self.casos == RAIZ_REAL
+
+
+def _montado(cfg: Config) -> bool:
+    return not cfg.exigir_montagem or os.path.ismount(cfg.casos)
 
 
 def _resposta(caso, acao, status, result):
@@ -49,12 +63,39 @@ def _ultima_execucao(casos: str, cod: str):
     return ultimo, ultimo.with_suffix(".done").exists()
 
 
+def _interrompida(arq: Path) -> bool:
+    """Execução sem .done cujo processo já não existe (ponte ou VPS reiniciada no meio)."""
+    pid_arq = arq.with_suffix(".pid")
+    try:
+        pid = int(pid_arq.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        try:
+            return time.time() - arq.stat().st_mtime > LIMITE_EXECUCAO
+        except OSError:
+            return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+    return False
+
+
+INTERROMPIDA = "a última execução foi interrompida (ponte ou VPS reiniciada); repita a ação."
+
+
 def executar(cfg: Config, acao: str, cod: str, pergunta: str) -> dict:
+    if not _montado(cfg):
+        return _resposta(cod, acao, "indisponivel",
+                         f"CASO {cod}: volume de casos não montado na VPS; o Fabbro precisa rodar nexo-montar-casos.")
     if acao == "resultado":
         arq, pronto = _ultima_execucao(cfg.casos, cod)
         if arq is None:
             return _resposta(cod, acao, "sem_execucao", f"CASO {cod}: nenhuma análise registrada.")
         if not pronto:
+            if _interrompida(arq):
+                return _resposta(cod, acao, "erro", f"CASO {cod}: {INTERROMPIDA}")
             return _resposta(cod, acao, "em_execucao", f"CASO {cod}: análise em andamento.")
         try:
             dados = json.loads(arq.read_text(encoding="utf-8"))
@@ -66,7 +107,7 @@ def executar(cfg: Config, acao: str, cod: str, pergunta: str) -> dict:
 
     if acao in ACOES_LONGAS:
         arq, pronto = _ultima_execucao(cfg.casos, cod)
-        if arq is not None and not pronto:
+        if arq is not None and not pronto and not _interrompida(arq):
             return _resposta(cod, acao, "em_execucao", f"CASO {cod}: já há uma análise em andamento; aguarde o resultado.")
 
     args = [cfg.nexo_run, acao, cod, *([pergunta] if pergunta else [])]

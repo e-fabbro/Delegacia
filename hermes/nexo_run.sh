@@ -7,8 +7,9 @@
 # e fala com a ponte por 127.0.0.1 via hermes/agencia_cliente.py.
 #
 # Ações curtas (status, novo, diligencias) respondem na hora com o JSON de ops/nexo_exec.sh (campo `result`).
-# Ações longas (ingerir, analisar) rodam em segundo plano e gravam /srv/casos/<COD>/log/run_<ts>.json;
-# o Hermes avisa "em análise" e, ao encontrar o arquivo .done, envia o `result`.
+# Ações longas (ingerir, analisar) rodam em segundo plano e gravam /srv/casos/<COD>/log/run_<ts>.json
+# (+ .pid do processo); o Hermes avisa "em análise" e, ao encontrar o arquivo .done, envia o `result`.
+# Com /srv/casos desmontado, toda ação devolve {"erro": "volume de casos não montado ..."} sem chamar o Codex.
 # Nada além de codinome, pseudônimos, contagens e status deve sair por aqui.
 set -euo pipefail
 
@@ -23,6 +24,11 @@ fi
 if ! [[ "${COD}" =~ ^[A-Z][A-Z0-9_-]{1,31}$ ]]; then
   echo '{"erro":"codinome inválido"}'; exit 1
 fi
+# Depois de um reboot o volume cifrado fica desmontado até o Fabbro rodar nexo-montar-casos: avisa
+# antes de gastar cota do Codex ou responder "caso não existe". Só vale para a raiz real dos casos.
+if [[ "${CASOS_DIR}" == /srv/casos ]] && ! mountpoint -q "${CASOS_DIR}"; then
+  echo '{"erro":"volume de casos não montado na VPS (nexo-montar-casos)"}'; exit 1
+fi
 
 case "${ACAO}" in
   status|novo|diligencias)
@@ -35,6 +41,7 @@ case "${ACAO}" in
     SAIDA="${LOG_DIR}/run_$(date +%s%N).json"
     : > "${SAIDA}"   # existe antes da resposta: marca a execução em andamento (sem .done) sem corrida
     nohup bash -c 'bash "$1" "${@:3}" > "$2"; touch "${2%.json}.done"' _ "${EXEC}" "${SAIDA}" "$@" >/dev/null 2>&1 &
+    echo $! > "${SAIDA%.json}.pid"   # a ponte confere se a execução ainda vive (ponte/VPS reiniciada)
     echo "{\"status\":\"em_execucao\",\"caso\":\"${COD}\",\"acao\":\"${ACAO}\",\"resultado\":\"${SAIDA}\",\"pronto\":\"${SAIDA%.json}.done\"}"
     ;;
   *) echo '{"erro":"ação desconhecida"}'; exit 1 ;;

@@ -135,6 +135,19 @@ def test_falha_do_codex(raiz_projeto, ambiente):
     assert dados["status"] == "erro" and dados["codigo"] == 3
 
 
+def test_nexo_run_avisa_volume_desmontado(raiz_projeto, ambiente):
+    # só com a raiz real: nos testes AGENCIA_CASOS aponta para um diretório comum (não é mountpoint)
+    tmp, env = ambiente
+    run = str(raiz_projeto / "hermes" / "nexo_run.sh")
+    env = {**env, "AGENCIA_CASOS": "/srv/casos"}
+    if os.path.ismount("/srv/casos"):
+        pytest.skip("/srv/casos montado nesta máquina")
+    for acao in ("status", "analisar"):
+        p = subprocess.run(["bash", run, acao, "TESTE"], env=env, capture_output=True, text=True)
+        assert p.returncode == 1 and "não montado" in json.loads(p.stdout)["erro"]
+    assert not (tmp / "stdin").exists()  # o Codex não foi chamado
+
+
 def test_scripts_sem_claude(raiz_projeto):
     for rel in ("ops/nexo_exec.sh", "ops/teste_headless.sh", "hermes/nexo_run.sh"):
         texto = (raiz_projeto / rel).read_text(encoding="utf-8")
@@ -159,6 +172,8 @@ def test_nexo_run_curta_e_longa(raiz_projeto, ambiente):
     aviso = json.loads(p.stdout)
     assert aviso["status"] == "em_execucao"
     assert os.path.exists(aviso["resultado"])  # criado antes da resposta: sem corrida com a ponte
+    pid = int(open(aviso["resultado"][:-len(".json")] + ".pid", encoding="utf-8").read())  # a ponte confere se vive
+    assert pid > 0
     pronto = aviso["pronto"]
     for _ in range(50):
         if os.path.exists(pronto):

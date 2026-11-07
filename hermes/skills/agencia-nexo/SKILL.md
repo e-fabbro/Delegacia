@@ -29,6 +29,8 @@ Um único comando, pelo terminal:
 - ingerir, analisar: responda "Caso <COD> em análise. Aviso quando terminar." Quando o Fabbro perguntar
   (ou a Gutcha repassar "terminou?"), rode `agencia resultado <COD>` e devolva o texto impresso.
 - Se o comando disser "Agência indisponível" ou "execução falhou", devolva essa frase, sem detalhes.
+- Se disser "volume de casos não montado", devolva isso: só o Fabbro monta o volume na VPS (`nexo-montar-casos`,
+  necessário após cada reboot). Se disser "execução foi interrompida", peça ao Fabbro para repetir a ação.
 - Codinome: letras maiúsculas, números, `-` ou `_` (ex.: TESTE, OP-ALFA). Não invente codinome.
 
 ## Regras do canal

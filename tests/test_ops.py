@@ -118,6 +118,13 @@ def test_nft_permite_icmp_do_nexo(raiz_projeto):
     assert "meta l4proto icmp accept" in texto
 
 
+def test_nft_nao_loga_pacotes_sem_socket(raiz_projeto):
+    # RST/FIN-ACK gerados pelo kernel não têm skuid: sem esta regra enchem o log "nexo-egress-drop".
+    texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")
+    assert "ct state invalid counter drop" in texto
+    assert texto.index("ct state invalid counter drop") < texto.index('log prefix "nexo-egress-drop "')
+
+
 def test_setup_recarrega_regras_ao_reexecutar(raiz_projeto):
     # `enable --now` não recarrega um oneshot já ativo: regra nova só vale com restart.
     texto = (raiz_projeto / "ops" / "setup_vps.sh").read_text(encoding="utf-8")

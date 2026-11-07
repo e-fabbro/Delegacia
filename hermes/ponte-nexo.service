@@ -13,6 +13,9 @@ Environment=AGENCIA_PONTE_PORTA=8791
 ExecStart=/usr/bin/python3 /opt/agencia-nexo/hermes/ponte_nexo.py
 Restart=on-failure
 RestartSec=5
+# As análises longas (nexo_run → codex exec) são filhas da ponte e podem levar horas: um restart da
+# ponte não pode matá-las. Com control-group (padrão) o Codex morria e o run_*.json ficava sem .done.
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target

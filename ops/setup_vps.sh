@@ -151,6 +151,9 @@ table inet nexo_egress {
         tcp dport 53 accept
         ip daddr @permitidos_v4 tcp dport 443 accept
         ip6 daddr @permitidos_v6 tcp dport 443 accept
+        # RST/FIN-ACK que o kernel gera sem socket (port scan, TIME_WAIT) não têm skuid: cairiam aqui
+        # e poluiriam o log. Continuam descartados, mas sem log: o log fica só para saída real do nexo.
+        ct state invalid counter drop
         log prefix "nexo-egress-drop " counter drop
     }
 }

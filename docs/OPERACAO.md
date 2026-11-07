@@ -11,6 +11,8 @@ no Codex, com login ChatGPT próprio. Nunca use chave de API.
    sudo -u nexo mountpoint /srv/casos        # "is a mountpoint"
    ```
    Root não enxerga `/srv/casos` montado (sem `allow_other`). Isso é esperado.
+   Enquanto o volume estiver desmontado, qualquer pedido pela ponte ou por `nexo_run` responde
+   "volume de casos não montado" sem chamar o Codex (nada de cota gasta nem "caso não existe" enganoso).
 2. **Firewall do nexo** (sobe sozinho):
    ```
    systemctl is-active nexo-egress-nft.service nexo-egress-refresh.timer
@@ -38,7 +40,7 @@ no Codex, com login ChatGPT próprio. Nunca use chave de API.
 | Auditoria dos hooks (toda chamada de ferramenta, inclusive bloqueios) | `/var/log/agencia-nexo/auditoria.jsonl` | só comandos, truncados; rotação mensal, 5 anos |
 | Eventos e stderr do Codex por execução | `/srv/casos/<COD>/log/codex_<acao>_<ts>.jsonl` e `.err` | dentro do volume cifrado; vão no pacote de arquivamento |
 | Resultado de cada execução | `/srv/casos/<COD>/log/headless_*.json`, `run_*.json` (+ `.done`) | `result` é o resumo pseudonimizado |
-| Descartes do firewall do nexo | `journalctl -k \| grep nexo-egress-drop` | destino e porta |
+| Descartes do firewall do nexo | `journalctl -k \| grep nexo-egress-drop` | destino e porta; só saída real do nexo (RST/FIN sem socket são descartados sem log) |
 | Ponte | `journalctl -u ponte-nexo` | não registra pedidos (a auditoria fica na Agência) |
 
 Os logs dos casos não passam por logrotate: root não enxerga o volume montado, e cada execução gera arquivo próprio
@@ -55,6 +57,9 @@ retoma do ponto em que parou.
 
 - Retomar ou refazer a análise: `nexo_run analisar <COD>` (ou `agencia analisar <COD>` pelo Hermes).
   Agentes já aprovados não são refeitos.
+- Execução interrompida (VPS reiniciada no meio): a ponte percebe pelo `.pid` ao lado do `run_*.json`,
+  responde "execução foi interrompida" e aceita a ação de novo. Reiniciar só a `ponte-nexo` não mata
+  a análise (`KillMode=process`): ela termina e o `resultado` chega normalmente.
 - Material novo: deposite em `/srv/casos/<COD>/00_brutos/` como `nexo`
   (`sudo -u nexo cp <arquivo> /srv/casos/<COD>/00_brutos/`) e rode `nexo_run ingerir <COD>`.
 - Conferências determinísticas, sem gastar cota:

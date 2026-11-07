@@ -9,6 +9,7 @@ import stat
 import subprocess
 import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -147,6 +148,46 @@ def test_falha_da_execucao_nao_vaza_log(ponte):
     assert resp["status"] == "erro" and "log" in resp["result"] and "/" not in resp["result"]
 
 
+def test_execucao_interrompida_libera_o_caso(ponte):
+    srv, casos, tmp = ponte
+    chamar(srv, {"acao": "analisar", "caso": "TESTE3"})
+    run = sorted((casos / "TESTE3" / "log").glob("run_*.json"))[-1]
+    morto = subprocess.Popen(["true"])
+    morto.wait()
+    run.with_suffix(".pid").write_text(str(morto.pid))  # processo que já não existe: VPS/ponte reiniciada
+    resp = chamar(srv, {"acao": "resultado", "caso": "TESTE3"})[1]
+    assert resp["status"] == "erro" and "interrompida" in resp["result"] and "/" not in resp["result"]
+    resp = chamar(srv, {"acao": "analisar", "caso": "TESTE3"})[1]
+    assert resp["status"] == "em_execucao" and "já" not in resp["result"]
+    assert (tmp / "registro").read_text().count("analisar TESTE3") == 2
+    # com o processo vivo, continua "em andamento" e recusa segunda execução
+    run = sorted((casos / "TESTE3" / "log").glob("run_*.json"))[-1]
+    run.with_suffix(".pid").write_text(str(os.getpid()))
+    assert chamar(srv, {"acao": "resultado", "caso": "TESTE3"})[1]["status"] == "em_execucao"
+    assert "já" in chamar(srv, {"acao": "ingerir", "caso": "TESTE3"})[1]["result"]
+
+
+def test_execucao_antiga_sem_pid_conta_como_interrompida(ponte, raiz_projeto):
+    srv, casos, _ = ponte
+    mod = _carregar(raiz_projeto, "ponte_nexo")
+    chamar(srv, {"acao": "analisar", "caso": "TESTE3"})
+    run = sorted((casos / "TESTE3" / "log").glob("run_*.json"))[-1]
+    assert chamar(srv, {"acao": "resultado", "caso": "TESTE3"})[1]["status"] == "em_execucao"
+    velho = time.time() - mod.LIMITE_EXECUCAO - 60
+    os.utime(run, (velho, velho))
+    assert chamar(srv, {"acao": "resultado", "caso": "TESTE3"})[1]["status"] == "erro"
+
+
+def test_volume_desmontado_nao_chama_o_codex(raiz_projeto, tmp_path):
+    mod = _carregar(raiz_projeto, "ponte_nexo")
+    assert mod.Config(token=TOKEN).exigir_montagem is True            # raiz real: exige o volume cifrado
+    assert mod.Config(token=TOKEN, casos=str(tmp_path)).exigir_montagem is False
+    cfg = mod.Config(token=TOKEN, nexo_run="/nao/existe", casos=str(tmp_path), exigir_montagem=True)
+    for acao in ("status", "analisar", "resultado"):
+        resp = mod.executar(cfg, acao, "TESTE", "")
+        assert resp["status"] == "indisponivel" and "não montado" in resp["result"] and "/" not in resp["result"]
+
+
 # ---------- cliente do perfil Hermes ----------
 
 def test_cliente_fala_com_a_ponte(ponte, raiz_projeto, tmp_path):
@@ -178,6 +219,7 @@ def test_unidade_systemd_da_ponte(raiz_projeto):
     assert "User=nexo" in texto and "/opt/agencia-nexo/hermes/ponte_nexo.py" in texto
     assert "AGENCIA_PONTE_TOKEN_ARQUIVO=/etc/agencia-nexo/ponte.token" in texto
     assert "User=root" not in texto
+    assert "KillMode=process" in texto  # restart da ponte não mata a análise longa (filha dela)
 
 
 def test_adendo_usa_so_a_ferramenta(raiz_projeto):
